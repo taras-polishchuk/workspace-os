@@ -66,6 +66,8 @@ The pipeline executed all 7 phases:
 6. **Post-fix audit** — every original HIGH finding re-tested; subagent dispatched (timed out at 600s — relied on parent-level reproduction).
 7. **Convergence** — all HIGH/CRITICAL findings closed; remaining items explicitly classified.
 
+**Subagent parent-recovery:** The Phase 6 security subagent timed out at 600s without writing a final report. Per parent-recovery protocol, the parent executed an 11-test independent verification harness covering all P0/P1 fixes: race conditions on register_workspace/register_mission (8-thread concurrency), atomic_write_text 100KB content, safe_mkdir symlink refusal, unsafe shim fallback, mission symlink refusal, state permission hardening, clean errors for `--workspace /nonexistent --yes init` and `agent run --`, and end-to-end symlink refusal for validate output and agent run logs. All 11 tests pass — no regressions were introduced by the patches.
+
 **Tools installed during the pipeline:** `ruff`, `mypy`, `bandit`, `pip-audit`.
 
 **Test execution environment:** Python 3.12.3, pytest 9.1.1, on WSL/Linux.
