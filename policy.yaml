@@ -1,0 +1,25 @@
+# Workspace OS drift-classification policy (R7 + R14 PRESERVE rule).
+# Canonical freeze baseline: 14 PASS / 78 FAIL. The historical 14/66 figure
+# was an obsolete audit-report phantom and is not a supported baseline.
+# R14: missing 8-file artifacts emit 'sprint_pattern_incomplete' category
+# which is now in 'mandatory_drift' (PRESERVE rule means it is ALWAYS blocked
+# regardless of --accept-drift or known_drift). The 8-file CONSTANT in
+# workspace_os.mission.SPRINT_PATTERN_FILES is preserved; only enforcement
+# behaviour flips from hard-fail-on-mission-creation to WARN-by-default with
+# `--strict` opt-in for v0.5-rc release gates.
+schema_version: 1
+invariants:
+  min_pass_count: 14
+  max_fail_count: 78
+  max_runtime_seconds: 60
+known_drift: []
+forbidden_drift:
+  - unexpected_db_writer
+  - missing_validator_script
+mandatory_drift:  # R14 PRESERVE: never waivable, even with --accept-drift
+  - missing_security_audit_log
+  - missing_audit_json_key
+  - sprint_pattern_incomplete
+baseline:
+  pass_count: 14
+  fail_count: 78

@@ -1,0 +1,29 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.so
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Setuptools / packaging
+*.egg-info/
+build/
+dist/
+
+# Workspace OS runtime
+.wsos/
+drift-acceptance.jsonl
+agent-runs/
+
+# Editor / OS
+.DS_Store
+*.swp
+.vscode/
+.idea/
