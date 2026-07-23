@@ -96,7 +96,9 @@ Every validator run is recorded in `validator_runs` table, including
 failures (R6 contract):
 
 ```sql
-SELECT run_id, ts, pass_count, fail_count, drift_id FROM validator_runs ORDER BY ts DESC LIMIT 5;
+-- The drift_id is computed by run_validator() and printed to stdout but is NOT
+-- persisted to validator_runs. To inspect the persisted audit trail:
+SELECT run_id, ts, pass_count, fail_count, raw_output_path FROM validator_runs ORDER BY ts DESC LIMIT 5;
 ```
 
 `cmd_validate` calls `record_validator_run()` after parsing the verdict,
