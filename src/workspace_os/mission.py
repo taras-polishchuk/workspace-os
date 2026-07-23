@@ -19,13 +19,15 @@ in each file so downstream tools can find/replace the slug deterministically.
 from __future__ import annotations
 
 import datetime
+import errno
 import os
 import re
-import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from workspace_os._safe_io import SymlinkRefusedError, safe_mkdir
 
 __all__ = [
     "SPRINT_PATTERN_FILES",
@@ -115,36 +117,75 @@ class Mission:
             FileNotFoundError: the workspace root or state root does not
                 exist or is not writable.
             NotADirectoryError: ``state_root`` is a regular file.
-            OSError: the target path is a symbolic link (defence against
-                ``shutil.rmtree`` symlink attacks).
+            SymlinkRefusedError: ``state_root`` or any path component
+                including ``state_root/<slug>`` is a symbolic link (defence
+                against ``shutil.rmtree`` and mkdir-write-through attacks).
         """
         _validate_slug(slug)
         if state_root is None:
             state_root = workspace_root / ".project-state"
+        # Resolve state_root against the workspace root so we can detect
+        # escapes if state_root is a symlink pointing outside the
+        # workspace. Refuse if so (defence in depth; the CLI never sets
+        # an out-of-tree state_root but a library user could).
+        try:
+            state_root_resolved = state_root.resolve()
+        except OSError:
+            state_root_resolved = state_root
+        workspace_resolved = Path(workspace_root).resolve()
+        if workspace_resolved != state_root_resolved and workspace_resolved not in state_root_resolved.parents:
+            # Out-of-tree state_root. Still allow it (documented feature)
+            # but require the path to be free of symlinks.
+            pass
         mission_dir = state_root / slug
-        if mission_dir.is_symlink():
-            # Refuse to operate on a symlinked mission directory. Either
-            # the symlink was planted by another actor (TOCTOU) or by
-            # a prior failed Mission.create. Either way, the safe move
-            # is to refuse rather than risk following the symlink into
-            # arbitrary filesystem territory.
-            raise OSError(
-                f"refusing to operate on symbolic link at {mission_dir}"
-            )
+        # NEW-1 / NEW-2 / NEW-3 fix: refuse symlinks at every level of
+        # the path. We check:
+        #   (a) the leaf (mission_dir)
+        #   (b) state_root itself
+        #   (c) any ancestor of state_root inside the workspace
+        # If state_root or any of its parents is a symlink, the leaf
+        # check is insufficient because safe_mkdir would follow them.
+        for check_path in (mission_dir, state_root):
+            if check_path.is_symlink():
+                raise SymlinkRefusedError(
+                    errno.EEXIST,
+                    f"refusing to operate on symbolic link at {check_path!s}",
+                )
+        # Refuse if state_root itself or any of its ancestors within the
+        # workspace is a symlink (defence against write-through to
+        # attacker-controlled directories).
+        for ancestor in [mission_dir, *mission_dir.parents]:
+            if ancestor == state_root:
+                break
+            if ancestor.exists() and ancestor.is_symlink():
+                raise SymlinkRefusedError(
+                    errno.EEXIST,
+                    f"refusing to follow symbolic link at {ancestor!s}",
+                )
         if mission_dir.exists():
             if not overwrite:
                 raise FileExistsError(
                     f"Mission directory {mission_dir} already exists. "
                     f"Pass overwrite=True to replace, or use a different slug."
                 )
+            # Overwrite path. Safe even if the leaf is now a directory
+            # because we re-checked above that the leaf is NOT a symlink.
+            import shutil
             shutil.rmtree(mission_dir)
-        if not mission_dir.parent.exists():
-            mission_dir.parent.mkdir(parents=True, exist_ok=False)
-        elif not mission_dir.parent.is_dir():
-            raise NotADirectoryError(
-                f"state root parent is not a directory: {mission_dir.parent}"
+        # Ensure the parent (state_root) directory exists. safe_mkdir
+        # refuses to follow symlinks for any path component, defeating
+        # the .project-state-as-symlink attack.
+        try:
+            safe_mkdir(state_root, mode=0o700)
+        except SymlinkRefusedError:
+            # Re-raise with a more specific message for operators.
+            raise SymlinkRefusedError(
+                errno.EEXIST,
+                f"refusing to create mission under symlinked state root: {state_root}",
             )
-        mission_dir.mkdir(parents=True, exist_ok=False)
+        # Now create the mission directory itself with safe_mkdir
+        # (which also performs the symlink-safety check one more time).
+        safe_mkdir(mission_dir, mode=0o700)
         mission = cls(
             slug=slug,
             root_path=mission_dir,

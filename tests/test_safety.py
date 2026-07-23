@@ -196,6 +196,34 @@ def test_mission_create_refuses_symlinked_target(tmp_path):
     assert (real / "data.txt").read_text() == "PRESERVED"
 
 
+def test_mission_create_refuses_symlinked_state_root(tmp_path):
+    """NEW-2 fix: if .project-state itself is a planted symlink, refuse."""
+    attacker_dir = tmp_path / "attacker-dir"
+    attacker_dir.mkdir()
+    ws = tmp_path / "w"
+    ws.mkdir()
+    (ws / ".project-state").symlink_to(attacker_dir)
+    with pytest.raises(SymlinkRefusedError):
+        Mission.create("victim", workspace_root=ws)
+    # Attacker dir must be untouched (no mission files leaked)
+    contents = list(attacker_dir.iterdir())
+    assert contents == [], f"mission files leaked into attacker dir: {contents}"
+
+
+def test_mission_create_refuses_overwrite_on_symlink_target(tmp_path):
+    """NEW-1 fix: if .project-state/<slug> is a symlink, refuse overwrite."""
+    real = tmp_path / "real-target"
+    real.mkdir()
+    (real / "data.txt").write_text("PRESERVED")
+    state_root = tmp_path / ".project-state"
+    state_root.mkdir()
+    (state_root / "victim-slug").symlink_to(real)
+    with pytest.raises(SymlinkRefusedError):
+        Mission.create("victim-slug", workspace_root=tmp_path, overwrite=True)
+    # Real target must be untouched
+    assert (real / "data.txt").read_text() == "PRESERVED"
+
+
 # --- Atomic write helper ---
 
 

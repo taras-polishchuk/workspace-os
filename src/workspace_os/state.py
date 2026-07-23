@@ -266,21 +266,21 @@ class WorkspaceState:
         self, mission_id: int, filename: str, exists: bool, sha256: Optional[str], mtime: Optional[float]
     ) -> None:
         with self.connect() as conn:
+            # NEW-4 fix: atomic single-statement UPSERT. The previous
+            # implementation used ON CONFLICT to upsert sha256/mtime,
+            # then a separate UPDATE for the quoted ``"exists"`` column
+            # because ON CONFLICT aliases interact poorly with quoted
+            # column names. SQLite supports ``excluded."exists"`` if
+            # the column reference is fully quoted in the UPDATE SET
+            # clause too.
             conn.execute(
                 """INSERT INTO mission_artifacts(mission_id, filename, "exists", sha256, mtime)
                    VALUES (?, ?, ?, ?, ?)
                    ON CONFLICT(mission_id, filename) DO UPDATE SET
+                     "exists" = excluded."exists",
                      sha256 = excluded.sha256,
                      mtime = excluded.mtime""",
                 (mission_id, filename, int(exists), sha256, mtime),
-            )
-            # Re-update "exists" via a follow-up statement because ON CONFLICT
-            # aliases for a quoted column name interact poorly with excluded.
-            conn.execute(
-                """UPDATE mission_artifacts
-                   SET "exists" = ?
-                   WHERE mission_id = ? AND filename = ?""",
-                (int(exists), mission_id, filename),
             )
             conn.commit()
 
