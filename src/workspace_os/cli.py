@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import os
 import shlex
+import sqlite3
 import subprocess
 import sys
 import time
@@ -524,6 +525,24 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 2
     except OSError as e:
         print(f"error: filesystem error: {e}", file=sys.stderr)
+        return 5
+    except KeyboardInterrupt:
+        # MEDIUM-5 fix: clean message instead of default Python traceback.
+        print("interrupted", file=sys.stderr)
+        return 130
+    except sqlite3.DatabaseError as e:
+        # MEDIUM-5 fix: corrupt or unreadable DB surfaces as a clean
+        # error rather than a traceback. Generic OSError handler
+        # above does not catch DatabaseError (subclass of Exception).
+        print(f"error: database error: {e}", file=sys.stderr)
+        return 5
+    except Exception as e:
+        # MEDIUM-5 fix: catch-all so any unexpected internal exception
+        # becomes a clean rc=5 instead of a Python traceback.
+        # Operators see the error message; full traceback goes to the
+        # log if needed (we don't have a logger here, so we print
+        # the exception type for debugging).
+        print(f"error: internal {type(e).__name__}: {e}", file=sys.stderr)
         return 5
 
 

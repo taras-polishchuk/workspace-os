@@ -16,10 +16,20 @@ The state database tracks:
 The schema is forward-compatible with the Phase 5+ Evidence Ledger (A-5).
 Per Article VII (Sprint Pattern), the canonical filesystem is the source
 of truth for mission identity; this DB is a derived cache.
+
+HIGH-2 fix: ``init()`` and ``connect()`` use an advisory file lock
+(``fcntl.flock`` on ``.wsos/.init.lock``) to serialise concurrent
+bootstrap. SQLite ``PRAGMA busy_timeout=5000`` is set so concurrent
+writers from already-locked processes wait up to 5s instead of
+failing immediately with ``database is locked``.
 """
 
 from __future__ import annotations
 
+import contextlib
+import errno
+import fcntl
+import os
 import sqlite3
 import time
 from dataclasses import dataclass
@@ -32,6 +42,17 @@ from workspace_os._safe_io import (
     safe_mkdir,
     tighten_existing_file,
 )
+
+#: SQLite busy timeout (ms). Concurrent writers from already-locked
+#: processes wait up to this duration before failing with
+#: ``OperationalError: database is locked``.
+BUSY_TIMEOUT_MS = 5000
+
+#: Filename of the advisory process-level lock that serialises
+#: ``WorkspaceState.init()`` and the first ``connect()`` against a
+#: workspace. Lives inside ``.wsos/`` so it is hidden from the
+#: filesystem view but always travels with the workspace.
+_INIT_LOCK_NAME = ".init.lock"
 
 __all__ = [
     "SCHEMA",
@@ -127,41 +148,97 @@ class WorkspaceState:
         wsos_root = workspace_root / ".wsos"
         return cls(db_path=wsos_root / "state.db", wsos_root=wsos_root)
 
+    @contextlib.contextmanager
+    def _init_lock(self) -> Iterator[None]:
+        """Acquire an advisory file lock on ``.wsos/.init.lock``.
+
+        HIGH-2 fix: serialises ``init()`` and the first ``connect()``
+        against a workspace, so concurrent bootstrap from multiple
+        processes does not race on directory creation or schema
+        execution. The lock file is created lazily with mode 0o600 and
+        released when the context manager exits.
+        """
+        lock_path = self.wsos_root / _INIT_LOCK_NAME
+        # Ensure parent exists; safe_mkdir is symlink-safe.
+        safe_mkdir(self.wsos_root, mode=WSOS_DIR_MODE)
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR | os.O_CLOEXEC, 0o600)
+        try:
+            # Block until we acquire the lock.
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    def _bootstrap(self) -> None:
+        """Create the SQLite schema and tighten permissions.
+
+        This is the inner bootstrap routine called by ``init()`` under
+        the ``_init_lock``. ``connect()`` must NOT call this — it would
+        deadlock by re-acquiring the lock from the same thread.
+        """
+        safe_mkdir(self.wsos_root, mode=WSOS_DIR_MODE)
+        conn = sqlite3.connect(str(self.db_path))
+        conn.executescript(SCHEMA)
+        conn.commit()
+        conn.close()
+        tighten_existing_file(self.db_path, mode=WSOS_FILE_MODE)
+
     def init(self) -> None:
         """Create the WSOS root directory and the SQLite schema.
+
+        HIGH-2 fix: serialised with an advisory file lock so concurrent
+        bootstrap from multiple processes does not race. ``safe_mkdir``
+        is symlink-safe so a planted symlink at ``.wsos`` is refused.
 
         The directory is created with mode 0o700 (owner-only). After the
         SQLite database file is created by the connection, it is chmod'd
         to 0o600 to defend against other local users reading the audit
         trail on a shared host.
         """
-        safe_mkdir(self.wsos_root, mode=WSOS_DIR_MODE)
-        with self.connect() as conn:
-            conn.executescript(SCHEMA)
-            conn.commit()
-        # Tighten the SQLite database file and any WAL/SHM sidecars that
-        # SQLite may have created during the first connect.
-        tighten_existing_file(self.db_path, mode=WSOS_FILE_MODE)
-        for sidecar in (self.db_path.with_suffix(self.db_path.suffix + "-wal"),
-                         self.db_path.with_suffix(self.db_path.suffix + "-shm")):
-            if sidecar.exists():
-                tighten_existing_file(sidecar, mode=WSOS_FILE_MODE)
+        with self._init_lock():
+            self._bootstrap()
+            # Tighten any sidecars SQLite may have created.
+            for sidecar in (self.db_path.with_suffix(self.db_path.suffix + "-wal"),
+                             self.db_path.with_suffix(self.db_path.suffix + "-shm")):
+                if sidecar.exists():
+                    tighten_existing_file(sidecar, mode=WSOS_FILE_MODE)
 
     def connect(self) -> sqlite3.Connection:
         """Open a connection. Caller is responsible for commit/close.
 
-        If the database file does not yet exist, the schema is created
-        and the file is chmod'd to 0o600. WAL mode is enabled for
-        concurrent readers + single-writer semantics.
+        HIGH-2 fix: ``PRAGMA busy_timeout`` is set so concurrent writers
+        from already-locked processes wait up to 5s instead of failing
+        with ``OperationalError: database is locked``.
+
+        If the database file does not yet exist, the bootstrap routine
+        is invoked under the ``_init_lock``. The connect call does not
+        itself acquire the lock when ``_bootstrap`` is running (no
+        recursive lock).
+
+        MEDIUM-6 fix: refuse to open a symlinked state.db (defence
+        against a TOCTOU attack where an attacker plants a symlink at
+        ``state.db`` pointing to e.g. ``/etc/passwd``).
         """
         if not self.db_path.exists():
-            safe_mkdir(self.wsos_root, mode=WSOS_DIR_MODE)
-            conn = sqlite3.connect(str(self.db_path))
-            conn.executescript(SCHEMA)
-            conn.commit()
-            conn.close()
-            tighten_existing_file(self.db_path, mode=WSOS_FILE_MODE)
-        conn = sqlite3.connect(str(self.db_path))
+            # First-time bootstrap. Hold the init lock so concurrent
+            # processes do not race on directory creation or schema
+            # execution.
+            with self._init_lock():
+                self._bootstrap()
+        # MEDIUM-6: refuse to follow a symlinked state.db. The file may
+        # have been planted between the existence check and the open.
+        # SymlinkRefusedError surfaces as a clean error to the operator.
+        from workspace_os._safe_io import SymlinkRefusedError
+        if self.db_path.is_symlink():
+            raise SymlinkRefusedError(
+                errno.EEXIST,
+                f"refusing to operate on symbolic link at {self.db_path}",
+            )
+        conn = sqlite3.connect(str(self.db_path), timeout=BUSY_TIMEOUT_MS / 1000)
+        conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA journal_mode = WAL")
         # Belt-and-braces: tighten any newly-created WAL/SHM sidecars too.

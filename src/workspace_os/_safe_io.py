@@ -56,13 +56,65 @@ def _ensure_not_symlink(path: Path) -> None:
                 raise
 
 
+def _ensure_no_ancestor_is_symlink(path: Path) -> None:
+    """Refuse the operation if any path component is a symbolic link.
+
+    Walks the path from the root down to the leaf, raising
+    :class:`SymlinkRefusedError` if any component is a symlink. Existing
+    components are checked with ``is_symlink()``; non-existent components
+    are skipped (they will be created by the caller, which should use
+    symlink-safe primitives).
+
+    This helper is used by :func:`safe_mkdir` and :func:`atomic_write_text`
+    to enforce the contract that operations never follow symlinks at any
+    path level, regardless of whether the leaf already exists.
+    """
+    path = Path(path)
+    try:
+        parts = path.parts
+    except (AttributeError, ValueError):
+        return
+    if not parts:
+        return
+    # Build cumulative paths starting from the first component.
+    # Note: ``is_symlink()`` is checked OUTSIDE the try/except so that
+    # ``SymlinkRefusedError`` (a subclass of OSError) is NOT silently
+    # swallowed by an over-broad except clause.
+    for i in range(1, len(parts) + 1):
+        p = Path(*parts[:i])
+        if not p.exists():
+            continue
+        is_sym = False
+        try:
+            is_sym = p.is_symlink()
+        except (OSError, ValueError):
+            # Path is broken or has non-UTF-8 bytes — fall through.
+            continue
+        if is_sym:
+            raise SymlinkRefusedError(
+                errno.EEXIST,
+                f"refusing to follow symbolic link at {p!s}",
+            )
+
+
 def safe_mkdir(path: Path, mode: int = WSOS_DIR_MODE, *, parents: bool = True) -> None:
     """Create a directory at ``path`` with the given mode.
 
     Defends against symlink attacks by checking every existing parent
     component for being a symlink before creation. The leaf directory
     is created with the given mode regardless of umask.
+
+    HIGH-1 fix: the existing-leaf branch now also checks ancestors for
+    symlinks. Previously a real dir reached via a symlink in its parent
+    path would be chmod'd through the symlink (changing mode bits on
+    the attacker's target).
     """
+    path = Path(path)
+    # HIGH-1 fix: always check ancestors FIRST (regardless of whether the
+    # leaf exists). This closes the gap where a real dir reached via a
+    # symlink parent would be chmod'd through the symlink.
+    if parents:
+        _ensure_no_ancestor_is_symlink(path)
     if path.exists():
         if path.is_symlink():
             raise SymlinkRefusedError(
@@ -80,18 +132,27 @@ def safe_mkdir(path: Path, mode: int = WSOS_DIR_MODE, *, parents: bool = True) -
         except PermissionError:
             pass
         return
-    if parents:
-        # Verify all existing ancestors are not symlinks.
-        for parent in path.parents:
-            if parent == path:
-                continue
-            if parent.exists() and parent.is_symlink():
-                raise SymlinkRefusedError(
-                    errno.EEXIST,
-                    f"refusing to follow symbolic link at {parent!s}",
-                )
+    # Leaf doesn't exist: create it. safe_mkdir has already verified
+    # ancestors, but the kernel may have raced between is_symlink() and
+    # mkdir; re-check immediately before mkdir.
+    if path.parent != path and path.parent.exists() and path.parent.is_symlink():
+        raise SymlinkRefusedError(
+            errno.EEXIST,
+            f"refusing to follow symbolic link at parent {path.parent!s}",
+        )
     # mkdir with mode, then chmod to ensure umask doesn't weaken it.
-    path.mkdir(parents=parents, exist_ok=False)
+    # HIGH-2 fix: use ``exist_ok=True`` to handle the residual race
+    # window between ``path.exists()`` (line 115) and ``mkdir()``.
+    # ``safe_mkdir`` has already done the symlink-safety checks; the
+    # only remaining failure mode is a benign race where another
+    # process created the same dir, which is fine.
+    try:
+        path.mkdir(parents=parents, exist_ok=True)
+    except FileExistsError:
+        # Race: another process created the same path between exists()
+        # check and mkdir(). Treat as success (the directory exists).
+        if not path.is_dir():
+            raise
     os.chmod(path, mode)
 
 

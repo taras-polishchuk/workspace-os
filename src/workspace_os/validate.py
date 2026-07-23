@@ -31,18 +31,45 @@ SUMMARY_RE = re.compile(r"Summary:\s*(\d+)\s*passed,\s*(\d+)\s*failed", re.IGNOR
 def _shim_is_safe(shim_path: Path) -> bool:
     """Verify the legacy shim is safe to execute.
 
-    Returns True if the shim is owned by the current UID and not
-    group/world-writable. Otherwise returns False.
+    MEDIUM-3 fix: the shim itself must be a regular file (not a
+    symlink), must be owned by the current UID, must not be
+    group/world-writable, and must not have setuid/setgid/sticky bits.
+    Also rejects symlinks at any path level (defence against
+    `bin/`-as-symlink attacks).
+
+    Returns True iff the shim is owned by the current user and has a
+    strict permission mode and no special bits. Otherwise False.
     """
+    # MEDIUM-3: refuse if the shim path itself is a symlink (TOCTOU
+    # window between check and subprocess.run) or any parent is a
+    # symlink. ``os.lstat`` does not follow symlinks.
     try:
-        st = os.stat(shim_path)
+        st = os.lstat(shim_path)
     except OSError:
+        return False
+    # Refuse if the leaf is a symlink or any special file.
+    import stat as stat_mod
+    if not stat_mod.S_ISREG(st.st_mode):
         return False
     if st.st_uid != os.getuid():
         return False
     # Reject if group- or world-writable.
     if st.st_mode & 0o022:
         return False
+    # Reject if setuid, setgid, or sticky bit is set (defence in depth).
+    if st.st_mode & 0o7000:
+        return False
+    # MEDIUM-3: also refuse if any parent component is a symlink. An
+    # attacker who can plant a symlink at `bin/` can swap the shim
+    # even if the target file is safe.
+    parent = shim_path.parent
+    while parent != parent.parent:
+        try:
+            if parent.is_symlink():
+                return False
+        except OSError:
+            return False
+        parent = parent.parent
     return True
 
 
