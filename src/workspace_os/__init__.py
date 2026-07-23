@@ -14,7 +14,7 @@ Public API:
 Authority:
     - Constitution Article VII (Sprint Pattern)
     - Constitution Article X (Amendment)
-    - Final-Implementation-Program.md 2026-07-22 (program ratification)
+    - FINAL-IMPLEMENTATION-PROGRAM.md 2026-07-22 (program ratification)
     - AMENDMENTS.md 2026-07-22 (operator disposition ratifying program)
 """
 

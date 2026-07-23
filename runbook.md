@@ -253,7 +253,7 @@ workspaces; the legacy shim is no longer required.
 
 - `WORKSPACE-CONSTITUTION.md` Article VII (Sprint Pattern) — R12 banner applied
 - `WORKSPACE-CONSTITUTION.md` Article X (Amendment procedure)
-- `Final-Implementation-Program.md` 2026-07-22 (program ratification)
+- `FINAL-IMPLEMENTATION-PROGRAM.md` 2026-07-22 (program ratification)
 - `GOVERNANCE/AMENDMENTS.md` 2026-07-22 (operator disposition)
 - Canonical implementation package: `/home/taras/projects/.project-state/workspace-os-v2-implementation-2026-07-22/`
 - Production acceptance audit: `/home/taras/projects/.project-state/workspace-os-v2-production-acceptance-2026-07-22/`
@@ -264,4 +264,4 @@ workspaces; the legacy shim is no longer required.
   (`WORKSPACE-OS-V2-IMPLEMENTATION-BLUEPRINT.md`) is archived at
   `/home/taras/projects/.project-state/archive/workspace-os-v2-implementation-blueprint-2026-07-22/`
   and is **not** a production-path document. Implementation authority
-  flows from `Final-Implementation-Program.md` instead.
+  flows from `FINAL-IMPLEMENTATION-PROGRAM.md` instead.

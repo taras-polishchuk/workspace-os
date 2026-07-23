@@ -64,7 +64,7 @@ Target: ≥50 tests (current: 85).
 
 - `GOVERNANCE/WORKSPACE-CONSTITUTION.md` Articles VII (Sprint Pattern),
   X (Amendment). See `runbook.md` for the canonical amendment procedure.
-- `Final-Implementation-Program.md` 2026-07-22 (program ratification).
+- `FINAL-IMPLEMENTATION-PROGRAM.md` 2026-07-22 (program ratification).
 - `GOVERNANCE/AMENDMENTS.md` 2026-07-22 (operator disposition ratifying program).
 
 ## v0.5-rc scope and limitations
