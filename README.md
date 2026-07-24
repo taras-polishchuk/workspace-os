@@ -12,53 +12,56 @@ kernel: validator, CLI, mission lifecycle, and SQLite state store.
 ## Installation
 
 ```bash
-cd /home/taras/projects/workspace-os
-pip install -e .
+pip install -e .              # editable install (development)
+pip install workspace-os      # install from PyPI (when published)
 ```
+
+Python 3.11+ required. Only runtime dependency is PyYAML>=6.0.
 
 ## CLI
 
 ```bash
-workspace-os --workspace /path init                            # initialize /path/.wsos/state.db
-workspace-os --workspace /path mission new my-slug             # create .project-state/my-slug/ with 8 artifacts
-workspace-os --workspace /path mission list                    # list missions
-workspace-os --workspace /path validate                        # run peer validator and report
-workspace-os --workspace /path agent run -- echo hello         # run a shell command, record in agent_runs
+workspace-os --workspace /path/to/workspace init                            # initialize /path/.wsos/state.db
+workspace-os --workspace /path/to/workspace mission new my-slug             # create .project-state/my-slug/ with 8 artifacts
+workspace-os --workspace /path/to/workspace mission list                    # list missions
+workspace-os --workspace /path/to/workspace validate                        # run peer validator and report
+workspace-os --workspace /path/to/workspace agent run -- echo hello         # run a shell command, record in agent_runs
 ```
 
 `--workspace` is accepted both before and after the verb. Default
-workspace root is `/home/taras/projects`; override via `--workspace
-/path` or `WORKSPACE_OS_ROOT` env var.
+workspace root is `/home/taras/projects` (the canonical Workspace OS
+host); override via `--workspace /path/to/workspace` or
+`WORKSPACE_OS_ROOT` env var.
 
 ## Library API
 
 ```python
+from pathlib import Path
 from workspace_os import WorkspaceState, Mission, run_validator, SPRINT_PATTERN_FILES
 
 # Create SQLite state for a workspace
-state = WorkspaceState.for_workspace(Path("/home/taras/projects"))
+state = WorkspaceState.for_workspace(Path("/path/to/workspace"))
 state.init()
-wid = state.register_workspace(Path("/home/taras/projects"))
+wid = state.register_workspace(Path("/path/to/workspace"))
 
 # Create a mission directory per Article VII Sprint Pattern
-m = Mission.create("my-slug", workspace_root=Path("/home/taras/projects"))
+m = Mission.create("my-slug", workspace_root=Path("/path/to/workspace"))
 ok, missing = m.all_artifacts_present()
 assert ok and missing == []
 
 # Run the workspace validator and parse the verdict
-verdict = run_validator(Path("/home/taras/projects"))
+verdict = run_validator(Path("/path/to/workspace"))
 print(f"{verdict.pass_count} PASS / {verdict.fail_count} FAIL")
 ```
 
 ## Tests
 
 ```bash
-cd /home/taras/projects/workspace-os
-pip install pytest
+pip install -e ".[test]"           # one-time setup
 PYTHONPATH=src python3 -m pytest tests/ -q
 ```
 
-Target: ≥50 tests (current: 85).
+Current: 109 tests, all passing.
 
 ## Authority
 

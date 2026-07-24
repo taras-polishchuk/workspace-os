@@ -27,3 +27,8 @@ agent-runs/
 *.swp
 .vscode/
 .idea/
+
+# Virtual environment (created during local development)
+venv/
+.venv/
+env/

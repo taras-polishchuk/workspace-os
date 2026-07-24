@@ -7,7 +7,7 @@ cd /home/taras/projects/workspace-os
 PYTHONPATH=src python3 -m pytest -q
 ```
 
-Current state: 85 tests, all passing.
+Current state: 109 tests, all passing.
 
 The tests cover:
 - CLI argument parsing and exit codes
