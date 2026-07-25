@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -218,11 +219,19 @@ def run_validator(
             "rationale": accept_rationale.strip(),
             "mission_id": mission_id,
         }
-        # Append atomically: write the full new contents to a tempfile
-        # and replace. (jsonl files are append-only but we read-modify-write
-        # to keep the operation atomic and symlink-safe.)
-        existing = ""
-        if audit_path.exists() and not audit_path.is_symlink():
-            existing = audit_path.read_text(encoding="utf-8")
-        atomic_write_text(audit_path, existing + json.dumps(record, sort_keys=True) + "\n")
+        # Serialize the read-modify-write sequence across processes. Atomic
+        # replacement protects readers, while this separate stable lock file
+        # prevents concurrent accepted runs from losing audit records.
+        lock_path = audit_path.with_suffix(audit_path.suffix + ".lock")
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            os.fchmod(lock_fd, 0o600)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            existing = ""
+            if audit_path.exists() and not audit_path.is_symlink():
+                existing = audit_path.read_text(encoding="utf-8")
+            atomic_write_text(audit_path, existing + json.dumps(record, sort_keys=True) + "\n")
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
     return verdict

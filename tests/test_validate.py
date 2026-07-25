@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import multiprocessing
 from pathlib import Path
 
 import pytest
 
+from workspace_os.policy import load_policy
 from workspace_os.validate import ValidatorVerdict, run_validator
 
 # Sample validator outputs used to exercise the parser.
@@ -107,6 +110,10 @@ def test_run_validator_no_summary_returns_zeros(tmp_path: Path):
     assert verdict.fail_count == 0
 
 
+def _accept_known_drift(workspace_root: Path, rationale: str) -> None:
+    run_validator(workspace_root, accept_drift=True, accept_rationale=rationale)
+
+
 # --- WP-09 / R14 PRESERVE + strict mode ---
 
 
@@ -154,9 +161,33 @@ def test_r14_warn_only_default_keeps_known_drift_ok(stub_validator_dir: Path):
     assert v.accepted is True
 
 
+def test_concurrent_drift_acceptance_preserves_every_audit_record(tmp_path: Path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    validator = bin_dir / "validate-workspace.sh"
+    validator.write_text(
+        "#!/usr/bin/env bash\necho 'Summary: 10 passed, 50 failed'\nexit 1\n",
+        encoding="utf-8",
+    )
+    validator.chmod(0o755)
+
+    rationales = [f"concurrent-{index}" for index in range(12)]
+    processes = [
+        multiprocessing.Process(target=_accept_known_drift, args=(tmp_path, rationale))
+        for rationale in rationales
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=15)
+        assert process.exitcode == 0
+
+    audit_path = tmp_path / ".wsos" / "drift-acceptance.jsonl"
+    records = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+    assert {record["rationale"] for record in records} == set(rationales)
+
+
 def test_r14_policy_mandatory_drift_field_loads():
-    """R14: policy.yaml parses mandatory_drift without errors."""
-    from workspace_os.policy import load_policy
 
     p = load_policy(Path(__file__).resolve().parents[1] / "policy.yaml")
     assert "sprint_pattern_incomplete" in p.mandatory_drift

@@ -66,9 +66,13 @@ The verifier runs Ruff check and format, mypy, Bandit under the committed releas
 
 ## Authority
 
-- `GOVERNANCE/WORKSPACE-CONSTITUTION.md` Articles VII and X.
-- `FINAL-IMPLEMENTATION-PROGRAM.md` 2026-07-22.
-- `GOVERNANCE/AMENDMENTS.md` 2026-07-22.
+The authoritative governance and implementation program live in the parent Workspace OS workspace, outside this distribution repository:
+
+- `/home/taras/projects/GOVERNANCE/WORKSPACE-CONSTITUTION.md` Articles VII and X.
+- `/home/taras/projects/.project-state/workspace-os-v2-implementation-2026-07-22/FINAL-IMPLEMENTATION-PROGRAM.md`.
+- `/home/taras/projects/GOVERNANCE/AMENDMENTS.md` 2026-07-22.
+
+These host paths document release provenance and are not required at package runtime.
 
 ## v2.0.0 scope and limitations
 

@@ -11,11 +11,10 @@ Public API:
     - ``workspace_os.mission.Mission`` — 8-artifact Sprint Pattern directory creator
     - ``workspace_os.validate.run_validator`` — Python-owned validator wrapper
 
-Authority:
-    - Constitution Article VII (Sprint Pattern)
-    - Constitution Article X (Amendment)
-    - FINAL-IMPLEMENTATION-PROGRAM.md 2026-07-22 (program ratification)
-    - AMENDMENTS.md 2026-07-22 (operator disposition ratifying program)
+Authority (external to this distribution repository):
+    - /home/taras/projects/GOVERNANCE/WORKSPACE-CONSTITUTION.md Articles VII and X
+    - /home/taras/projects/.project-state/workspace-os-v2-implementation-2026-07-22/FINAL-IMPLEMENTATION-PROGRAM.md
+    - /home/taras/projects/GOVERNANCE/AMENDMENTS.md (2026-07-22 ratification)
 """
 
 __version__ = "2.0.0"
