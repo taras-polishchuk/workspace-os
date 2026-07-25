@@ -69,8 +69,9 @@ def test_validate_output_refuses_symlink(tmp_path):
 # --- HIGH-4: agent-run log must not follow symlinks ---
 
 
-def test_agent_run_log_refuses_symlink(tmp_path):
+def test_agent_run_log_refuses_symlink(tmp_path, monkeypatch):
     """``workspace-os agent run`` log must not follow a planted symlink."""
+    # Run init through the CLI; the tmp_path is owned and writable.
     r = _run(["init"], tmp_path)
     assert r.returncode == 0, r.stderr
     sensitive = tmp_path / "deploy_key"
@@ -99,7 +100,7 @@ def test_init_unwritable_path_returns_clean_error():
 # --- HIGH-2: agent run -- empty ---
 
 
-def test_agent_run_empty_command_returns_clean_error(tmp_path):
+def test_agent_run_empty_command_returns_clean_error(tmp_path, monkeypatch):
     _run(["init"], tmp_path)
     r = _run(["agent", "run", "--"], tmp_path)
     assert r.returncode == 2
