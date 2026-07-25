@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_ci_invokes_canonical_release_verifier():
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text())
-    jobs = workflow["jobs"]
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
     steps = jobs["release-verify"]["steps"]
     commands = [step.get("run", "") for step in steps]
     assert "python scripts/release_verify.py" in commands
