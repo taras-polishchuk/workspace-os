@@ -11,6 +11,8 @@ subsystems: bridge, validator, daemon, release), see
 
 **Audience:** Taras (operator), AI agents operating on his behalf.
 
+For the runtime bootstrap procedure that an AI runtime implements in service of this kernel, see [`docs/BOOTSTRAP-PROCEDURE.md`](docs/BOOTSTRAP-PROCEDURE.md). The procedure canonical owner is `/home/taras/projects/GOVERNANCE/BOOTSTRAP.md`; the kernel does not redefine it.
+
 ---
 
 ## 1. Quick start
