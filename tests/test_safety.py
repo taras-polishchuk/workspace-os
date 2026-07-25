@@ -34,6 +34,8 @@ from workspace_os._safe_io import (
 from workspace_os.mission import Mission
 from workspace_os.state import WorkspaceState
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def _run(args, workspace, extra_env=None):
     env = {**os.environ, "PYTHONPATH": "src"}
@@ -44,7 +46,7 @@ def _run(args, workspace, extra_env=None):
         capture_output=True,
         text=True,
         env=env,
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
 
 
@@ -349,7 +351,7 @@ def test_state_concurrent_init_no_errors(tmp_path):
     import sys
     import threading
 
-    env = {**os.environ, "PYTHONPATH": "/home/taras/projects/workspace-os/src"}
+    env = {**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")}
     errors = []
 
     def worker():
@@ -358,7 +360,7 @@ def test_state_concurrent_init_no_errors(tmp_path):
             capture_output=True,
             text=True,
             env=env,
-            cwd="/home/taras/projects/workspace-os",
+            cwd=REPO_ROOT,
             timeout=20,
         )
         if r.returncode != 0:

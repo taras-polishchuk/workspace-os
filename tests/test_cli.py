@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def _stub_validator_workspace(tmp_path: Path) -> Path:
     bin_dir = tmp_path / "bin"
@@ -30,7 +32,7 @@ def test_cli_version():
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": "src"},
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 0
     assert "2.0.0" in completed.stdout
@@ -42,7 +44,7 @@ def test_cli_help():
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": "src"},
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 0
     assert "workspace-os" in completed.stdout
@@ -56,7 +58,7 @@ def test_cli_init(tmp_path: Path, monkeypatch):
         capture_output=True,
         text=True,
         env=env,
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 0, completed.stderr
     assert (tmp_path / ".wsos" / "state.db").exists()
@@ -70,7 +72,7 @@ def test_cli_mission_new(tmp_path: Path, monkeypatch):
         capture_output=True,
         text=True,
         env=env,
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 0, completed.stderr
     mission_dir = tmp_path / ".project-state" / "alpha-beta"
@@ -86,7 +88,7 @@ def test_cli_mission_new_invalid_slug(tmp_path: Path, monkeypatch):
         capture_output=True,
         text=True,
         env=env,
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 2, completed.stderr
 
@@ -95,20 +97,16 @@ def test_cli_mission_new_overwrite_required(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("WORKSPACE_OS_ROOT", str(tmp_path))
     args = [sys.executable, "-m", "workspace_os.cli", "mission", "new", "alpha"]
     env = {**os.environ, "PYTHONPATH": "src"}
-    r1 = subprocess.run(
-        args, capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os"
-    )
+    r1 = subprocess.run(args, capture_output=True, text=True, env=env, cwd=REPO_ROOT)
     assert r1.returncode == 0, r1.stderr
-    r2 = subprocess.run(
-        args, capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os"
-    )
+    r2 = subprocess.run(args, capture_output=True, text=True, env=env, cwd=REPO_ROOT)
     assert r2.returncode == 3, r2.stderr
 
 
 def test_cli_mission_list(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("WORKSPACE_OS_ROOT", str(tmp_path))
     env = {**os.environ, "PYTHONPATH": "src"}
-    cwd = "/home/taras/projects/workspace-os"
+    cwd = REPO_ROOT
     subprocess.run(
         [sys.executable, "-m", "workspace_os.cli", "mission", "new", "first"],
         capture_output=True,
@@ -135,7 +133,7 @@ def test_cli_validate(tmp_path: Path, monkeypatch):
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": "src"},
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert "14 PASS" in completed.stdout
     assert "78 FAIL" in completed.stdout
@@ -148,7 +146,7 @@ def test_cli_agent_run(tmp_path: Path, monkeypatch):
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": "src"},
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 0
     assert "hello" in completed.stdout
@@ -161,7 +159,7 @@ def test_cli_no_command_prints_help(tmp_path: Path, monkeypatch):
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": "src"},
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     assert completed.returncode == 0
     assert "workspace-os" in completed.stdout
@@ -179,7 +177,7 @@ def test_cli_validate_unknown_workspace(tmp_path: Path):
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": "src"},
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
     # Python validator runs and returns its own verdict (rc=1 on FAILs,
     # rc=0 on all-PASS). Either is acceptable; the contract is that the
@@ -204,7 +202,7 @@ def test_cli_validate_records_one_validator_run_row(tmp_path: Path, monkeypatch)
             capture_output=True,
             text=True,
             env=env,
-            cwd="/home/taras/projects/workspace-os",
+            cwd=REPO_ROOT,
         )
     db = workspace / ".wsos" / "state.db"
     conn = sqlite3.connect(str(db))
@@ -237,7 +235,7 @@ def _run_ws(args: list, tmp_path: Path, monkeypatch) -> subprocess.CompletedProc
         capture_output=True,
         text=True,
         env=env,
-        cwd="/home/taras/projects/workspace-os",
+        cwd=REPO_ROOT,
     )
 
 
