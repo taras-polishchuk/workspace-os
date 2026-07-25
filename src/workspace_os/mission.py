@@ -103,7 +103,7 @@ class Mission:
 
         Args:
             slug: Mission slug (e.g. ``workspace-os-v2-phase-1``).
-            workspace_root: The workspace root (e.g. ``/home/taras/projects``).
+            workspace_root: The workspace root (defaults to the current directory).
             state_root: Override the default ``.project-state/`` parent.
             overwrite: If True and the directory exists, remove it first.
 

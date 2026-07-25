@@ -33,7 +33,7 @@ workspace-os --workspace /path/to/workspace validate
 workspace-os --workspace /path/to/workspace agent run -- echo hello
 ```
 
-`--workspace` is accepted before or after the verb. The default root is `/home/taras/projects`; override it with `--workspace` or `WORKSPACE_OS_ROOT`.
+`--workspace` is accepted before or after the verb. The default root is the current directory; override it with `--workspace` or `WORKSPACE_OS_ROOT`.
 
 ## Library API
 

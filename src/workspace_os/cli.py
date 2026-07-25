@@ -16,7 +16,7 @@ Usage examples:
     workspace-os --workspace /path validate
     workspace-os --workspace /path agent run -- echo hello
 
-Implementation note: workspace_root defaults to ``/home/taras/projects``.
+Implementation note: workspace_root defaults to the current working directory.
 Override with ``--workspace /path`` (accepted either before or after the
 verb) or the ``WORKSPACE_OS_ROOT`` env var.
 """
@@ -56,7 +56,7 @@ __all__ = [
     "main",
 ]
 
-DEFAULT_WORKSPACE_ROOT = Path("/home/taras/projects")
+DEFAULT_WORKSPACE_ROOT = Path.cwd()
 
 
 def _resolve_workspace(args: argparse.Namespace) -> Path:
@@ -409,7 +409,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--workspace",
         "-w",
-        help="Workspace root path (default: $WORKSPACE_OS_ROOT or /home/taras/projects)",
+        help="Workspace root path (default: $WORKSPACE_OS_ROOT or the current directory)",
         default=None,
     )
     parser.add_argument(
