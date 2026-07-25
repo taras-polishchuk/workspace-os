@@ -20,7 +20,7 @@ No changes yet.
 
 ### Changed
 
-- Version finalized as `2.0.0`; release phase is `v2.0-rc` until the candidate is tagged and published.
+- Version finalized as `2.0.0`; GA release (`v2.0.0` tag, peels to commit `97c3c49e5f54385256f7f52052e1a5eee012a6b4`).
 - Default policy loading now uses `importlib.resources`, so installed wheels do not depend on the repository root.
 - Source and tests are Ruff-formatted under committed Ruff configuration.
 - Mypy and Bandit release policies are committed in `pyproject.toml`.
@@ -38,7 +38,7 @@ No changes yet.
 
 ## [2.0.0a1] - 2026-07-22
 
-Initial post-blueprint release candidate under the V2 Implementation Program.
+Superseded post-blueprint pre-GA artifact under the V2 Implementation Program.
 
 ### Added
 

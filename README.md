@@ -2,7 +2,7 @@
 
 **Workspace OS v2.0 - bounded local Python kernel for workspace missions.**
 
-Release candidate phase: `v2.0-rc`.
+GA release (`v2.0.0`, tag peeled at `97c3c49e5f54385256f7f52052e1a5eee012a6b4`). See [`WORKSPACE-OS-v2.0.0-GA-CERTIFICATE.md`](WORKSPACE-OS-v2.0.0-GA-CERTIFICATE.md) for the immutable historical certificate and [`WORKSPACE-OS-v2.0.0-CANONICAL-CONTEXT.md`](WORKSPACE-OS-v2.0.0-CANONICAL-CONTEXT.md) for the long-term canonical context.
 
 ## What this is
 
