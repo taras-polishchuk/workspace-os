@@ -64,6 +64,14 @@ python scripts/release_verify.py --clean-clone
 
 The verifier runs Ruff check and format, mypy, Bandit under the committed release policy, pytest, pip-audit, package build, archive-content checks, and installed-package smoke tests. CI invokes the same script on Python 3.11 and 3.12.
 
+## Documentation
+
+For the runtime bootstrap procedure that any conforming AI runtime implements in service of the Workspace OS workspace, see [`docs/BOOTSTRAP-PROCEDURE.md`](docs/BOOTSTRAP-PROCEDURE.md). The procedure canonical owner is `/home/taras/projects/GOVERNANCE/BOOTSTRAP.md`; the kernel's `docs/` file does not redefine it.
+
+For the validator caller contract, see [`docs/validator-callers.md`](docs/validator-callers.md).
+
+For the operator-facing runbook, see [`runbook.md`](runbook.md).
+
 ## Authority
 
 The authoritative governance and implementation program live in the parent Workspace OS workspace, outside this distribution repository:
