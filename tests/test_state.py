@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-
 from workspace_os.state import WorkspaceState
 
 
@@ -85,7 +84,9 @@ def test_close_mission(tmp_path: Path):
     mid = state.register_mission(wid, "x", tmp_path / ".project-state" / "x")
     state.close_mission(mid)
     with state.connect() as conn:
-        status = conn.execute("SELECT status FROM missions WHERE mission_id = ?", (mid,)).fetchone()[0]
+        status = conn.execute(
+            "SELECT status FROM missions WHERE mission_id = ?", (mid,)
+        ).fetchone()[0]
     assert status == "closed"
 
 
@@ -100,7 +101,8 @@ def test_close_mission_idempotent(tmp_path: Path):
     assert state.close_mission(mid) == "closed"
     with state.connect() as conn:
         first_closed_at, first_status = conn.execute(
-            "SELECT closed_at, status FROM missions WHERE mission_id = ?", (mid,),
+            "SELECT closed_at, status FROM missions WHERE mission_id = ?",
+            (mid,),
         ).fetchone()
     assert first_status == "closed"
     assert first_closed_at is not None and first_closed_at > 0
@@ -110,7 +112,8 @@ def test_close_mission_idempotent(tmp_path: Path):
     assert state.close_mission(mid) == "closed"
     with state.connect() as conn:
         second_closed_at, second_status = conn.execute(
-            "SELECT closed_at, status FROM missions WHERE mission_id = ?", (mid,),
+            "SELECT closed_at, status FROM missions WHERE mission_id = ?",
+            (mid,),
         ).fetchone()
     assert second_status == "closed"
     assert second_closed_at == first_closed_at, (
@@ -141,7 +144,9 @@ def test_record_mission_artifact(tmp_path: Path):
     mid = state.register_mission(wid, "a", tmp_path / ".project-state" / "a")
     state.record_mission_artifact(mid, "progress.md", True, "deadbeef", time.time())
     with state.connect() as conn:
-        n = conn.execute("SELECT COUNT(*) FROM mission_artifacts WHERE mission_id = ?", (mid,)).fetchone()[0]
+        n = conn.execute(
+            "SELECT COUNT(*) FROM mission_artifacts WHERE mission_id = ?", (mid,)
+        ).fetchone()[0]
     assert n == 1
 
 

@@ -32,9 +32,9 @@ import fcntl
 import os
 import sqlite3
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional
 
 from workspace_os._safe_io import (
     WSOS_DIR_MODE,
@@ -135,11 +135,11 @@ class WorkspaceState:
     wsos_root: Path = DEFAULT_WSOS_ROOT
 
     @classmethod
-    def default(cls) -> "WorkspaceState":
+    def default(cls) -> WorkspaceState:
         return cls(db_path=DEFAULT_DB_PATH, wsos_root=DEFAULT_WSOS_ROOT)
 
     @classmethod
-    def for_workspace(cls, workspace_root: Path) -> "WorkspaceState":
+    def for_workspace(cls, workspace_root: Path) -> WorkspaceState:
         """Construct a state handle rooted at the given workspace.
 
         The DB path is the workspace-local ``.wsos/state.db`` so the
@@ -201,8 +201,10 @@ class WorkspaceState:
         with self._init_lock():
             self._bootstrap()
             # Tighten any sidecars SQLite may have created.
-            for sidecar in (self.db_path.with_suffix(self.db_path.suffix + "-wal"),
-                             self.db_path.with_suffix(self.db_path.suffix + "-shm")):
+            for sidecar in (
+                self.db_path.with_suffix(self.db_path.suffix + "-wal"),
+                self.db_path.with_suffix(self.db_path.suffix + "-shm"),
+            ):
                 if sidecar.exists():
                     tighten_existing_file(sidecar, mode=WSOS_FILE_MODE)
 
@@ -232,6 +234,7 @@ class WorkspaceState:
         # have been planted between the existence check and the open.
         # SymlinkRefusedError surfaces as a clean error to the operator.
         from workspace_os._safe_io import SymlinkRefusedError
+
         if self.db_path.is_symlink():
             raise SymlinkRefusedError(
                 errno.EEXIST,
@@ -243,8 +246,10 @@ class WorkspaceState:
         conn.execute("PRAGMA journal_mode = WAL")
         # Belt-and-braces: tighten any newly-created WAL/SHM sidecars too.
         tighten_existing_file(self.db_path, mode=WSOS_FILE_MODE)
-        for sidecar in (self.db_path.with_suffix(self.db_path.suffix + "-wal"),
-                         self.db_path.with_suffix(self.db_path.suffix + "-shm")):
+        for sidecar in (
+            self.db_path.with_suffix(self.db_path.suffix + "-wal"),
+            self.db_path.with_suffix(self.db_path.suffix + "-shm"),
+        ):
             if sidecar.exists():
                 tighten_existing_file(sidecar, mode=WSOS_FILE_MODE)
         return conn
@@ -267,9 +272,7 @@ class WorkspaceState:
             )
             row = cur.fetchone()
             if row is None or row[0] is None:
-                raise sqlite3.DatabaseError(
-                    "register_workspace: no workspace_id returned"
-                )
+                raise sqlite3.DatabaseError("register_workspace: no workspace_id returned")
             workspace_id = int(row[0])
             conn.commit()
             return workspace_id
@@ -292,9 +295,7 @@ class WorkspaceState:
             row = cur.fetchone()
             if row is not None:
                 if row[0] is None:
-                    raise sqlite3.DatabaseError(
-                        "register_mission: no mission_id returned"
-                    )
+                    raise sqlite3.DatabaseError("register_mission: no mission_id returned")
                 mission_id = int(row[0])
                 conn.commit()
                 return mission_id
@@ -310,7 +311,7 @@ class WorkspaceState:
                 )
             return int(row[0])
 
-    def close_mission(self, mission_id: int) -> Optional[str]:
+    def close_mission(self, mission_id: int) -> str | None:
         """Mark a mission as closed. Idempotent: a second call is a no-op.
 
         Returns the mission's status after the operation (``'closed'`` whether
@@ -340,7 +341,12 @@ class WorkspaceState:
             return "closed"
 
     def record_mission_artifact(
-        self, mission_id: int, filename: str, exists: bool, sha256: Optional[str], mtime: Optional[float]
+        self,
+        mission_id: int,
+        filename: str,
+        exists: bool,
+        sha256: str | None,
+        mtime: float | None,
     ) -> None:
         with self.connect() as conn:
             # NEW-4 fix: atomic single-statement UPSERT. The previous
@@ -366,14 +372,20 @@ class WorkspaceState:
         workspace_id: int,
         pass_count: int,
         fail_count: int,
-        raw_output_path: Optional[Path],
+        raw_output_path: Path | None,
     ) -> int:
         now = time.time()
         with self.connect() as conn:
             cur = conn.execute(
                 """INSERT INTO validator_runs(workspace_id, ts, pass_count, fail_count, raw_output_path)
                    VALUES (?, ?, ?, ?, ?)""",
-                (workspace_id, now, pass_count, fail_count, str(raw_output_path) if raw_output_path else None),
+                (
+                    workspace_id,
+                    now,
+                    pass_count,
+                    fail_count,
+                    str(raw_output_path) if raw_output_path else None,
+                ),
             )
             conn.commit()
             # sqlite3 stubs type cur.lastrowid as int|None; the C API
@@ -382,17 +394,15 @@ class WorkspaceState:
             # stripped under -O and trips bandit B101).
             rowid = cur.lastrowid
             if rowid is None:
-                raise sqlite3.DatabaseError(
-                    "INSERT failed: no rowid returned"
-                )
+                raise sqlite3.DatabaseError("INSERT failed: no rowid returned")
             return int(rowid)
 
     def record_agent_run(
         self,
-        mission_id: Optional[int],
+        mission_id: int | None,
         command: str,
         exit_code: int,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> int:
         now = time.time()
         with self.connect() as conn:
@@ -404,12 +414,10 @@ class WorkspaceState:
             conn.commit()
             rowid = cur.lastrowid
             if rowid is None:
-                raise sqlite3.DatabaseError(
-                    "INSERT failed: no rowid returned"
-                )
+                raise sqlite3.DatabaseError("INSERT failed: no rowid returned")
             return int(rowid)
 
-    def list_missions(self, workspace_id: Optional[int] = None) -> list[dict]:
+    def list_missions(self, workspace_id: int | None = None) -> list[dict]:
         with self.connect() as conn:
             if workspace_id is None:
                 cur = conn.execute(
@@ -428,7 +436,7 @@ class WorkspaceState:
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
 
-    def latest_validator_run(self, workspace_id: int) -> Optional[dict]:
+    def latest_validator_run(self, workspace_id: int) -> dict | None:
         with self.connect() as conn:
             cur = conn.execute(
                 """SELECT run_id, ts, pass_count, fail_count, raw_output_path

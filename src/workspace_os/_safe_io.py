@@ -198,9 +198,7 @@ def atomic_write_text(
                 f"refusing to follow symbolic link at {path!s}",
             )
         # Existing regular file: os.replace will overwrite atomically.
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(parent), prefix=f".{path.name}.", suffix=".tmp"
-    )
+    fd, tmp_path = tempfile.mkstemp(dir=str(parent), prefix=f".{path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding=encoding) as f:
             f.write(content)

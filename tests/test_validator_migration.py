@@ -10,6 +10,7 @@ These tests exercise the validator's compatibility layer:
   Python validator and a stub shim against the same fixture and
   asserts equivalent normalised verdicts.
 """
+
 from __future__ import annotations
 
 import os
@@ -17,7 +18,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
 
 from workspace_os.validator import run_validation
 from workspace_os.validator.invariants import INVARIANTS, CheckResult
@@ -61,7 +61,7 @@ def _make_legacy_shim(tmp_path: Path) -> Path:
         "#!/usr/bin/env bash\n"
         "# Self-contained legacy shim (test fixture)\n"
         "echo 'DEPRECATED: bin/validate-workspace.sh forwards to python3 -m workspace_os.validator' >&2\n"
-        "exec python3 -m workspace_os.validator \"$@\"\n",
+        'exec python3 -m workspace_os.validator "$@"\n',
         encoding="utf-8",
     )
     shim.chmod(0o755)
@@ -80,20 +80,20 @@ def _make_dual_run_script(tmp_path: Path) -> Path:
         f'ROOT="{tmp_path}"\n'
         f'export PYTHONPATH="{PKG_SRC}:${{PYTHONPATH:-}}"\n'
         'tmp="$(mktemp -d)"\n'
-        'trap \'rm -rf "$tmp"\' EXIT\n'
-        'set +e\n'
+        "trap 'rm -rf \"$tmp\"' EXIT\n"
+        "set +e\n"
         'WORKSPACE="$ROOT" bash "$ROOT/bin/validate-workspace.sh" >"$tmp/shim.out" 2>"$tmp/shim.err"\n'
-        'shim_rc=$?\n'
+        "shim_rc=$?\n"
         'WORKSPACE="$ROOT" python3 -m workspace_os.validator >"$tmp/python.out" 2>"$tmp/python.err"\n'
-        'python_rc=$?\n'
-        'set -e\n'
+        "python_rc=$?\n"
+        "set -e\n"
         'if [ "$shim_rc" = "$python_rc" ]; then\n'
         '    echo "dual-run-validator: PASS — equivalent exit code"\n'
-        '    exit 0\n'
-        'else\n'
+        "    exit 0\n"
+        "else\n"
         '    echo "dual-run-validator: FAIL — rc mismatch shim=$shim_rc python=$python_rc"\n'
-        '    exit 1\n'
-        'fi\n',
+        "    exit 1\n"
+        "fi\n",
         encoding="utf-8",
     )
     script.chmod(0o755)
@@ -104,7 +104,9 @@ def test_validator_python_entry_point_runs(tmp_path: Path):
     ws = _fixture(tmp_path)
     result = subprocess.run(
         [sys.executable, "-m", "workspace_os.validator", "--workspace", str(ws)],
-        env=ENV, capture_output=True, text=True,
+        env=ENV,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0
     assert "Summary:" in result.stdout
@@ -115,7 +117,9 @@ def test_validator_self_contained_shim_forwards(tmp_path: Path):
     shim = _make_legacy_shim(ws)
     result = subprocess.run(
         ["bash", str(shim), "--workspace", str(ws)],
-        env=ENV, capture_output=True, text=True,
+        env=ENV,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0
     assert "DEPRECATED" in result.stderr
@@ -131,9 +135,10 @@ def test_validator_preserves_pass_fail_counts(tmp_path: Path):
 
 def test_validator_each_check_timeoutable():
     def slow():
-        time.sleep(.1)
+        time.sleep(0.1)
+
     try:
-        run_with_timeout(slow, timeout=.01)
+        run_with_timeout(slow, timeout=0.01)
     except TimeoutError:
         pass
     else:
@@ -161,7 +166,10 @@ def test_dual_run_comparator_exits_zero_on_clean(tmp_path: Path):
     script = _make_dual_run_script(ws)
     result = subprocess.run(
         ["bash", str(script)],
-        env=ENV, capture_output=True, text=True, timeout=60,
+        env=ENV,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "PASS" in result.stdout

@@ -14,6 +14,7 @@ Covers:
   raises a clean OSError rather than tracebacking.
 - Atomic write helper: tempfile + fsync + os.replace; symlinks are refused.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,9 +25,9 @@ from pathlib import Path
 import pytest
 
 from workspace_os._safe_io import (
-    SymlinkRefusedError,
     WSOS_DIR_MODE,
     WSOS_FILE_MODE,
+    SymlinkRefusedError,
     atomic_write_text,
     safe_mkdir,
 )
@@ -40,7 +41,10 @@ def _run(args, workspace, extra_env=None):
         env.update(extra_env)
     return subprocess.run(
         [sys.executable, "-m", "workspace_os.cli", *args],
-        capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd="/home/taras/projects/workspace-os",
     )
 
 
@@ -138,6 +142,7 @@ def test_state_db_existing_world_readable_is_tightened(tmp_path):
 
 def test_legacy_shim_refused_when_world_writable(tmp_path):
     from workspace_os.validate import _shim_is_safe
+
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     shim = bin_dir / "validate-workspace.sh"
@@ -148,6 +153,7 @@ def test_legacy_shim_refused_when_world_writable(tmp_path):
 
 def test_legacy_shim_accepted_when_owned_and_safe(tmp_path):
     from workspace_os.validate import _shim_is_safe
+
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     shim = bin_dir / "validate-workspace.sh"
@@ -161,6 +167,7 @@ def test_legacy_shim_unsafe_falls_back_to_python_validator(tmp_path):
     shim must NOT be executed. Instead, ``run_validator`` must fall back
     to the Python-owned validator and return a valid verdict (not raise)."""
     from workspace_os.validate import run_validator
+
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     shim = bin_dir / "validate-workspace.sh"
@@ -172,8 +179,7 @@ def test_legacy_shim_unsafe_falls_back_to_python_validator(tmp_path):
     # own verdict. We just need to confirm it didn't execute the shim
     # (so the verdict's pass_count is NOT 0 and fail_count is NOT 9999).
     assert v.pass_count != 0 or v.fail_count != 9999, (
-        f"unsafe shim was executed: pass_count={v.pass_count} "
-        f"fail_count={v.fail_count}"
+        f"unsafe shim was executed: pass_count={v.pass_count} fail_count={v.fail_count}"
     )
 
 
@@ -300,6 +306,7 @@ def test_shim_is_safe_rejects_symlink(tmp_path):
     """MEDIUM-3 regression test: a symlinked shim is rejected even
     when the target file is safe."""
     from workspace_os.validate import _shim_is_safe
+
     real = tmp_path / "real-safe.sh"
     real.write_text("#!/bin/bash\necho safe\n")
     real.chmod(0o755)
@@ -313,6 +320,7 @@ def test_shim_is_safe_rejects_symlink(tmp_path):
 def test_shim_is_safe_rejects_setuid_bit(tmp_path):
     """MEDIUM-3 / INFO-9: a shim with setuid bit is rejected."""
     from workspace_os.validate import _shim_is_safe
+
     shim = tmp_path / "validate-workspace.sh"
     shim.write_text("#!/bin/bash\necho safe\n")
     shim.chmod(0o4755)  # setuid
@@ -322,6 +330,7 @@ def test_shim_is_safe_rejects_setuid_bit(tmp_path):
 def test_shim_is_safe_rejects_symlink_parent(tmp_path):
     """MEDIUM-3: a shim in a symlinked bin/ directory is rejected."""
     from workspace_os.validate import _shim_is_safe
+
     real_bin = tmp_path / "real-bin"
     real_bin.mkdir()
     real_shim = real_bin / "validate-workspace.sh"
@@ -339,16 +348,22 @@ def test_state_concurrent_init_no_errors(tmp_path):
     import subprocess
     import sys
     import threading
+
     env = {**os.environ, "PYTHONPATH": "/home/taras/projects/workspace-os/src"}
     errors = []
+
     def worker():
         r = subprocess.run(
             [sys.executable, "-m", "workspace_os.cli", "--workspace", str(tmp_path), "init"],
-            capture_output=True, text=True, env=env,
-            cwd="/home/taras/projects/workspace-os", timeout=20,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd="/home/taras/projects/workspace-os",
+            timeout=20,
         )
         if r.returncode != 0:
             errors.append((r.returncode, r.stderr[:500]))
+
     threads = [threading.Thread(target=worker) for _ in range(8)]
     for t in threads:
         t.start()
@@ -361,6 +376,7 @@ def test_state_concurrent_init_no_errors(tmp_path):
     assert not real_errors, f"tracebacks leaked: {real_errors[:2]}"
     # State must be consistent regardless of error count
     from workspace_os.state import WorkspaceState
+
     state = WorkspaceState.for_workspace(tmp_path)
     with state.connect() as conn:
         n = conn.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0]

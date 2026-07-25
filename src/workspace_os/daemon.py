@@ -21,7 +21,6 @@ WP-17 (R26) addition — IPC contract + honest-stub semantics:
 
 from __future__ import annotations
 
-
 __all__ = [
     "IPC_CONTRACT_VERSION",
     "DaemonNotAvailableError",

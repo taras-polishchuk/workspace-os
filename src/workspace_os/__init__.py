@@ -1,6 +1,6 @@
 """Workspace OS v2 — local Python validator + CLI + SQLite state store.
 
-v0.5-rc scope per Workspace OS V2 Implementation Program.
+v2.0-rc scope per Workspace OS V2 Implementation Program.
 
 The workspace-os kernel implements the post-blueprint state management
 kernel: validator, CLI, mission lifecycle, and SQLite state store.
@@ -18,12 +18,12 @@ Authority:
     - AMENDMENTS.md 2026-07-22 (operator disposition ratifying program)
 """
 
-__version__ = "2.0.0a1"  # PEP 440 canonical; setuptools normalizes 2.0.0-a.1 → 2.0.0a1
-__phase__ = "v0.5-rc"
+__version__ = "2.0.0"
+__phase__ = "v2.0-rc"
 
+from workspace_os.mission import SPRINT_PATTERN_FILES, Mission
 from workspace_os.state import WorkspaceState
-from workspace_os.mission import Mission, SPRINT_PATTERN_FILES
-from workspace_os.validate import run_validator, ValidatorVerdict
+from workspace_os.validate import ValidatorVerdict, run_validator
 
 __all__ = [
     "__version__",

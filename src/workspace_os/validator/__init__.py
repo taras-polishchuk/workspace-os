@@ -1,10 +1,11 @@
 """Python-owned Workspace OS validator (WP-08/R13)."""
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from .invariants import CheckResult, INVARIANTS
+from .invariants import INVARIANTS, CheckResult
 from .report import format_report
 from .timeout import DEFAULT_CHECK_TIMEOUT, run_with_timeout
 
@@ -33,6 +34,7 @@ def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
     project_state = workspace / ".project-state"
     if project_state.is_dir():
         from .invariants import SPRINT_PATTERN_FILES_FOR_PRESERVE as _SPRINT_FILES
+
         for mission in project_state.iterdir():
             if not mission.is_dir():
                 continue
@@ -53,6 +55,7 @@ def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
     else:
         try:
             import json
+
             data = json.loads(index.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             markers.append("drift: missing_audit_json_key")
@@ -65,8 +68,15 @@ def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
     return raw_output + suffix
 
 
-def run_validation(workspace_root: Path | str | None = None, *, check_timeout: float = DEFAULT_CHECK_TIMEOUT) -> tuple[list[CheckResult], str, int]:
-    workspace = Path(workspace_root or os.environ.get("WORKSPACE") or os.environ.get("WORKSPACE_OS_ROOT") or Path.cwd()).resolve()
+def run_validation(
+    workspace_root: Path | str | None = None, *, check_timeout: float = DEFAULT_CHECK_TIMEOUT
+) -> tuple[list[CheckResult], str, int]:
+    workspace = Path(
+        workspace_root
+        or os.environ.get("WORKSPACE")
+        or os.environ.get("WORKSPACE_OS_ROOT")
+        or Path.cwd()
+    ).resolve()
     if not workspace.is_dir():
         message = f"environment: workspace root does not exist: {workspace}"
         result = CheckResult("environment", "FAIL", message)
@@ -77,9 +87,15 @@ def run_validation(workspace_root: Path | str | None = None, *, check_timeout: f
             value = run_with_timeout(check, workspace, timeout=check_timeout)
             results.extend(value if isinstance(value, list) else [value])
         except TimeoutError:
-            results.append(CheckResult(check.__name__, "FAIL", f"{check.__name__}: timed out after {check_timeout:g}s"))
+            results.append(
+                CheckResult(
+                    check.__name__, "FAIL", f"{check.__name__}: timed out after {check_timeout:g}s"
+                )
+            )
         except Exception as exc:  # one failed check must not suppress the report
-            results.append(CheckResult(check.__name__, "FAIL", f"{check.__name__}: environment error: {exc}"))
+            results.append(
+                CheckResult(check.__name__, "FAIL", f"{check.__name__}: environment error: {exc}")
+            )
     output = format_report(results)
     # C-1 fix: emit the R14 PRESERVE mandatory-drift markers so the
     # parser picks them up. This activates the previously-nominal PRESERVE

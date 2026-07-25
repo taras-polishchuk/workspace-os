@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 
-
 def _stub_validator_workspace(tmp_path: Path) -> Path:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -96,9 +95,13 @@ def test_cli_mission_new_overwrite_required(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("WORKSPACE_OS_ROOT", str(tmp_path))
     args = [sys.executable, "-m", "workspace_os.cli", "mission", "new", "alpha"]
     env = {**os.environ, "PYTHONPATH": "src"}
-    r1 = subprocess.run(args, capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os")
+    r1 = subprocess.run(
+        args, capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os"
+    )
     assert r1.returncode == 0, r1.stderr
-    r2 = subprocess.run(args, capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os")
+    r2 = subprocess.run(
+        args, capture_output=True, text=True, env=env, cwd="/home/taras/projects/workspace-os"
+    )
     assert r2.returncode == 3, r2.stderr
 
 
@@ -108,11 +111,17 @@ def test_cli_mission_list(tmp_path: Path, monkeypatch):
     cwd = "/home/taras/projects/workspace-os"
     subprocess.run(
         [sys.executable, "-m", "workspace_os.cli", "mission", "new", "first"],
-        capture_output=True, text=True, env=env, cwd=cwd,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=cwd,
     )
     completed = subprocess.run(
         [sys.executable, "-m", "workspace_os.cli", "mission", "list"],
-        capture_output=True, text=True, env=env, cwd=cwd,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=cwd,
     )
     assert completed.returncode == 0
     assert "first" in completed.stdout
@@ -184,6 +193,7 @@ def test_cli_validate_records_one_validator_run_row(tmp_path: Path, monkeypatch)
     at cmd_agent_run is unchanged.
     """
     import sqlite3
+
     workspace = _stub_validator_workspace(tmp_path)
     monkeypatch.setenv("WORKSPACE_OS_ROOT", str(workspace))
     env = {**os.environ, "PYTHONPATH": "src"}
@@ -234,13 +244,15 @@ def _run_ws(args: list, tmp_path: Path, monkeypatch) -> subprocess.CompletedProc
 def _create_mission(slug: str, tmp_path: Path, monkeypatch) -> int:
     """Create a mission via the CLI and return its mission_id from the DB."""
     import sqlite3
+
     r = _run_ws(["mission", "new", slug], tmp_path, monkeypatch)
     assert r.returncode == 0, r.stderr
     db_path = _wsos_root(tmp_path) / "state.db"
     conn = sqlite3.connect(str(db_path))
     try:
         row = conn.execute(
-            "SELECT mission_id FROM missions WHERE slug = ?", (slug,),
+            "SELECT mission_id FROM missions WHERE slug = ?",
+            (slug,),
         ).fetchone()
     finally:
         conn.close()
@@ -251,6 +263,7 @@ def _create_mission(slug: str, tmp_path: Path, monkeypatch) -> int:
 def test_cli_mission_close_by_slug(tmp_path: Path, monkeypatch):
     """Closing by slug persists 'closed' status + timestamp; exit 0."""
     import sqlite3
+
     mid = _create_mission("alpha-close-slug", tmp_path, monkeypatch)
     r = _run_ws(["mission", "close", "alpha-close-slug"], tmp_path, monkeypatch)
     assert r.returncode == 0, r.stderr
@@ -261,7 +274,8 @@ def test_cli_mission_close_by_slug(tmp_path: Path, monkeypatch):
     conn = sqlite3.connect(str(_wsos_root(tmp_path) / "state.db"))
     try:
         status, closed_at = conn.execute(
-            "SELECT status, closed_at FROM missions WHERE mission_id = ?", (mid,),
+            "SELECT status, closed_at FROM missions WHERE mission_id = ?",
+            (mid,),
         ).fetchone()
     finally:
         conn.close()
@@ -272,6 +286,7 @@ def test_cli_mission_close_by_slug(tmp_path: Path, monkeypatch):
 def test_cli_mission_close_by_id(tmp_path: Path, monkeypatch):
     """Closing by integer id resolves correctly; persists 'closed' status."""
     import sqlite3
+
     mid = _create_mission("alpha-close-id", tmp_path, monkeypatch)
     r = _run_ws(["mission", "close", str(mid)], tmp_path, monkeypatch)
     assert r.returncode == 0, r.stderr
@@ -280,7 +295,8 @@ def test_cli_mission_close_by_id(tmp_path: Path, monkeypatch):
     conn = sqlite3.connect(str(_wsos_root(tmp_path) / "state.db"))
     try:
         status = conn.execute(
-            "SELECT status FROM missions WHERE mission_id = ?", (mid,),
+            "SELECT status FROM missions WHERE mission_id = ?",
+            (mid,),
         ).fetchone()[0]
     finally:
         conn.close()
@@ -290,6 +306,7 @@ def test_cli_mission_close_by_id(tmp_path: Path, monkeypatch):
 def test_cli_mission_close_unknown_slug(tmp_path: Path, monkeypatch):
     """Unknown slug returns exit 4 with the error on stderr; no DB mutation."""
     import sqlite3
+
     # Initialize workspace state so the close path actually reaches the DB lookup.
     r_init = _run_ws(["init"], tmp_path, monkeypatch)
     assert r_init.returncode == 0, r_init.stderr
@@ -310,6 +327,7 @@ def test_cli_mission_close_already_closed(tmp_path: Path, monkeypatch):
     original closed_at is NOT overwritten."""
     import sqlite3
     import time as _time
+
     mid = _create_mission("alpha-close-twice", tmp_path, monkeypatch)
     r1 = _run_ws(["mission", "close", "alpha-close-twice"], tmp_path, monkeypatch)
     assert r1.returncode == 0, r1.stderr
@@ -317,7 +335,8 @@ def test_cli_mission_close_already_closed(tmp_path: Path, monkeypatch):
     conn = sqlite3.connect(str(_wsos_root(tmp_path) / "state.db"))
     try:
         original_closed_at = conn.execute(
-            "SELECT closed_at FROM missions WHERE mission_id = ?", (mid,),
+            "SELECT closed_at FROM missions WHERE mission_id = ?",
+            (mid,),
         ).fetchone()[0]
     finally:
         conn.close()
@@ -331,7 +350,8 @@ def test_cli_mission_close_already_closed(tmp_path: Path, monkeypatch):
     conn = sqlite3.connect(str(_wsos_root(tmp_path) / "state.db"))
     try:
         second_closed_at, status = conn.execute(
-            "SELECT closed_at, status FROM missions WHERE mission_id = ?", (mid,),
+            "SELECT closed_at, status FROM missions WHERE mission_id = ?",
+            (mid,),
         ).fetchone()
     finally:
         conn.close()

@@ -2,81 +2,59 @@
 
 ## Maintenance status
 
-`workspace-os` v2.0.0a1 is the current release and is **actively
-maintained** as the post-blueprint state-management kernel for
-Workspace OS V2.
+`workspace-os` 2.0.0 is the current bounded local-kernel release candidate and is actively maintained.
 
-The v1.1 LTS baseline (`v1.1.0-LTS`, frozen 2026-06-28) remains under
-the v1.1 LTS governance contract: bug fixes only, no architectural
-changes. See `/home/taras/projects/GOVERNANCE/FREEZE-NOTICE.md`.
+The historical v1.1 LTS baseline remains governed by its existing bug-fix-only contract. This v2.0 release does not amend LTS governance.
 
 ## Supported versions
 
 | Version | Phase | Status | Support window |
 |---|---|---|---|
-| v2.0.0a1 (v0.5-rc) | release candidate | active | until v2.0.0 GA |
-| v1.1.0-LTS | LTS | frozen (bug fixes only) | per LTS contract |
+| 2.0.0 (`v2.0-rc`) | release candidate | active | through GA publication and subsequent 2.0.x maintenance |
+| 2.0.0a1 | superseded candidate | unsupported | superseded by 2.0.0 candidate |
+| 1.1.0-LTS | historical LTS | frozen, bug fixes only | per existing LTS contract |
 
-## What we fix
+## Supported scope
 
-For the current release (`v2.0.0a1`):
+We fix:
 
-- **Security defects** — CVE-class issues, race conditions, unsafe
-  filesystem operations. Same-day response during work hours.
-- **Correctness defects** — bugs in the documented CLI surface,
-  SQLite state semantics, or validator verdict parsing.
-- **Documentation drift** — stale references, broken links, version
-  mismatches between docs and code.
-- **Build / install** — wheel build failures, dependency conflicts,
-  metadata errors.
+- security defects and unsafe filesystem behavior;
+- correctness defects in the documented CLI, SQLite state, mission lifecycle, and validator;
+- package build, install, and bundled-resource defects;
+- committed quality-gate, CI, and release-tooling defects;
+- documentation drift in maintained release surfaces.
 
-## What we DO NOT fix
+We do not treat these post-GA ecosystem capabilities as v2.0 defects:
 
-- New features not present in the documented CLI surface.
-- Architectural redesign of the state-management kernel.
-- Integration with external systems beyond the documented peer
-  interfaces (`kgctl approve-canonical` integration, GMR monorepo
-  creation, 4-service compose) — these are deferred per
-  `README.md` "v0.5-rc scope".
-- Behavior changes in the validator's drift classification without an
-  amendment to `policy.yaml` and a corresponding governance entry.
+- daemon implementation;
+- `kgctl approve-canonical` integration;
+- GMR monorepo creation;
+- four-service Compose deployment;
+- distributed or hosted operation.
+
+Changes to validator drift classification require an approved policy change and corresponding governance record.
 
 ## Reporting issues
 
-For workspace-os itself, file an issue in this repository.
+Report package defects in the canonical repository issue tracker once the repository is published. Until then, report them to the repository owner with:
 
-For governance, validator-policy, or cross-cutting Workspace OS
-concerns, see `/home/taras/projects/GOVERNANCE/AMENDMENTS.md`.
+- `workspace-os --version` output;
+- Python version and platform;
+- exact command and exit code;
+- minimal workspace fixture if applicable;
+- output from `python scripts/release_verify.py` for build or gate failures.
 
 ## Deprecation policy
 
-When a function, CLI flag, or behaviour is deprecated:
-
-1. It continues to work unchanged for at least one minor release.
-2. A `DeprecationWarning` is emitted (Python ≥3.7) or a stderr
-   warning is printed on use.
-3. The deprecation is documented in `CHANGELOG.md` under "Deprecated".
-4. The deprecation is removed in the next major release.
+1. A deprecated function, flag, or behavior remains available for at least one minor release.
+2. Use emits `DeprecationWarning` or a clear stderr warning.
+3. The deprecation is recorded in `CHANGELOG.md`.
+4. Removal occurs in the next major release unless security requires earlier action.
 
 ## Security policy
 
-Security defects should be reported via the same issue tracker with
-the `security` label. There is no separate embargo process for the
-v2.0.0a1 release candidate; LTS releases will follow a separate
-disclosure policy when announced.
+Security reports currently use the same owner channel as correctness defects. A separate private disclosure channel must be established before public publication if embargoed reports are required.
 
 ## Versioning
 
-This project follows Semantic Versioning 2.0.0:
-
-- **MAJOR** — incompatible API changes.
-- **MINOR** — backwards-compatible functionality additions.
-- **PATCH** — backwards-compatible bug fixes.
-
-Pre-1.0 versions (a, b, rc) are not covered by the strict SemVer
-contract; their API may evolve between minor versions within the same
-release candidate phase.
-
-The current `v2.0.0a1` is a **release candidate** for `v2.0.0`. The
-first GA release will follow after the v0.5-rc scope is closed (no
-deferred items remaining).
+The project follows Semantic Versioning 2.0.0. The package version is `2.0.0`; `v2.0-rc` describes release-candidate lifecycle state, not a different Python package version. GA is reached only when the candidate commit is published, remote CI is green, and the `v2.0.0` tag identifies that commit.

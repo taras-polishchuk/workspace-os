@@ -1,10 +1,11 @@
 """Stable text and normalized-verdict formatting."""
+
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Iterable
+from datetime import UTC, datetime
 
 from .invariants import CheckResult
 
@@ -27,12 +28,19 @@ class NormalizedVerdict:
     drift_id: str = ""
 
 
-def format_report(results: Iterable[CheckResult], *, generated: str | None = None, drift_id: str = "") -> str:
+def format_report(
+    results: Iterable[CheckResult], *, generated: str | None = None, drift_id: str = ""
+) -> str:
     rows = list(results)
     passed = sum(result.passed for result in rows)
     failed = len(rows) - passed
-    generated = generated or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    lines = ["================================================", "Workspace OS v2 — Validation Report", f"Generated: {generated}", "================================================"]
+    generated = generated or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    lines = [
+        "================================================",
+        "Workspace OS v2 — Validation Report",
+        f"Generated: {generated}",
+        "================================================",
+    ]
     for result in rows:
         lines.append(f"{result.status:<6}{result.message}")
         lines.extend(f"        {detail}" for detail in result.details)

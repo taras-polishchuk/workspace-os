@@ -25,7 +25,6 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from workspace_os._safe_io import SymlinkRefusedError, safe_mkdir
 
@@ -69,14 +68,12 @@ def _format_utc_timestamp(t: float) -> str:
     derived from ``timezone.utc`` rather than hardcoded — if a future
     maintainer swaps the source timezone, the label still reflects reality.
     """
-    return datetime.datetime.fromtimestamp(t, tz=datetime.timezone.utc).strftime(
-        "%Y-%m-%d %H:%M:%S UTC"
-    )
+    return datetime.datetime.fromtimestamp(t, tz=datetime.UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 def _format_utc_date(t: float) -> str:
     """Format a Unix timestamp as a UTC date string (YYYY-MM-DD)."""
-    return datetime.datetime.fromtimestamp(t, tz=datetime.timezone.utc).strftime("%Y-%m-%d")
+    return datetime.datetime.fromtimestamp(t, tz=datetime.UTC).strftime("%Y-%m-%d")
 
 
 @dataclass
@@ -98,10 +95,10 @@ class Mission:
         cls,
         slug: str,
         workspace_root: Path,
-        state_root: Optional[Path] = None,
+        state_root: Path | None = None,
         *,
         overwrite: bool = False,
-    ) -> "Mission":
+    ) -> Mission:
         """Create a new mission directory at the canonical location.
 
         Args:
@@ -133,7 +130,10 @@ class Mission:
         except OSError:
             state_root_resolved = state_root
         workspace_resolved = Path(workspace_root).resolve()
-        if workspace_resolved != state_root_resolved and workspace_resolved not in state_root_resolved.parents:
+        if (
+            workspace_resolved != state_root_resolved
+            and workspace_resolved not in state_root_resolved.parents
+        ):
             # Out-of-tree state_root. Still allow it (documented feature)
             # but require the path to be free of symlinks.
             pass
@@ -171,6 +171,7 @@ class Mission:
             # Overwrite path. Safe even if the leaf is now a directory
             # because we re-checked above that the leaf is NOT a symlink.
             import shutil
+
             shutil.rmtree(mission_dir)
         # Ensure the parent (state_root) directory exists. safe_mkdir
         # refuses to follow symlinks for any path component, defeating
@@ -235,9 +236,7 @@ class Mission:
                 f"- **Next:** <TODO>\n"
             ),
             "artifacts.md": (
-                f"# Artifacts — {self.slug}\n\n"
-                f"## Produced\n\n"
-                f"- <TODO: path — role>\n"
+                f"# Artifacts — {self.slug}\n\n## Produced\n\n- <TODO: path — role>\n"
             ),
             "environment.md": (
                 f"# Environment — {self.slug}\n\n"
@@ -252,8 +251,7 @@ class Mission:
                 f"[{ts}] [bootstrap] Mission directory created at `{self.root_path}`.\n"
             ),
             "final-report.md": (
-                f"# Final Report — {self.slug}\n\n"
-                f"(To be written at mission close.)\n"
+                f"# Final Report — {self.slug}\n\n(To be written at mission close.)\n"
             ),
         }
         for filename, content in headers.items():

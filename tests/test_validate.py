@@ -8,7 +8,6 @@ import pytest
 
 from workspace_os.validate import ValidatorVerdict, run_validator
 
-
 # Sample validator outputs used to exercise the parser.
 SUMMARY_PASS = """\
 Check 1: PASS — path integrity
@@ -110,9 +109,11 @@ def test_run_validator_no_summary_returns_zeros(tmp_path: Path):
 
 # --- WP-09 / R14 PRESERVE + strict mode ---
 
+
 def test_r14_mandatory_drift_persists_even_with_accept(stub_validator_dir: Path, monkeypatch):
     """R14 PRESERVE: mandatory categories are NEVER waivable, even with --accept-drift."""
     from workspace_os.validate import run_validator as _rv
+
     # Force the run to see a mandatory-drift category by monkeypatching the
     # validator output to contain one in the summary line.
     fake = (
@@ -121,7 +122,7 @@ def test_r14_mandatory_drift_persists_even_with_accept(stub_validator_dir: Path,
         "DRIFT_CATEGORY: sprint_pattern_incomplete\n"
     )
     (stub_validator_dir / "bin" / "validate-workspace.sh").write_text(
-        f"#!/usr/bin/env bash\necho \"{fake}\"\n", encoding="utf-8"
+        f'#!/usr/bin/env bash\necho "{fake}"\n', encoding="utf-8"
     )
     (stub_validator_dir / "bin" / "validate-workspace.sh").chmod(0o755)
     v1 = _rv(stub_validator_dir, accept_drift=True, accept_rationale="r14 test")
@@ -135,7 +136,9 @@ def test_r14_strict_mode_blocks_accepted_drift(stub_validator_dir: Path):
         encoding="utf-8",
     )
     (stub_validator_dir / "bin" / "validate-workspace.sh").chmod(0o755)
-    v = run_validator(stub_validator_dir, accept_drift=True, accept_rationale="r14 strict test", strict=True)
+    v = run_validator(
+        stub_validator_dir, accept_drift=True, accept_rationale="r14 strict test", strict=True
+    )
     assert v.ok is False, "--strict must override --accept-drift even when --accept-drift is set"
 
 
@@ -154,6 +157,7 @@ def test_r14_warn_only_default_keeps_known_drift_ok(stub_validator_dir: Path):
 def test_r14_policy_mandatory_drift_field_loads():
     """R14: policy.yaml parses mandatory_drift without errors."""
     from workspace_os.policy import load_policy
+
     p = load_policy(Path(__file__).resolve().parents[1] / "policy.yaml")
     assert "sprint_pattern_incomplete" in p.mandatory_drift
     assert "missing_security_audit_log" in p.mandatory_drift

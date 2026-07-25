@@ -24,6 +24,7 @@ def test_daemon_main_prints_phase_message(capsys):
 
 # --- R26 (WP-17) IPC contract tests ---
 
+
 def test_ipc_contract_version_is_pinned():
     """R26: contract version is pinned so callers can detect breaking changes."""
     assert daemon.IPC_CONTRACT_VERSION == "0-stub"

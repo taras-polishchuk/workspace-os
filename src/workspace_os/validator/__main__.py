@@ -1,4 +1,5 @@
 """Command-line entry point for ``python3 -m workspace_os.validator``."""
+
 from __future__ import annotations
 
 import argparse
@@ -11,10 +12,16 @@ __all__ = ["main"]
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate Workspace OS filesystem invariants")
-    parser.add_argument("--workspace", default=None, help="workspace root (default: $WORKSPACE, $WORKSPACE_OS_ROOT, or $PWD)")
+    parser.add_argument(
+        "--workspace",
+        default=None,
+        help="workspace root (default: $WORKSPACE, $WORKSPACE_OS_ROOT, or $PWD)",
+    )
     # M-12 fix: validate --check-timeout > 0
     parser.add_argument(
-        "--check-timeout", type=float, default=10.0,
+        "--check-timeout",
+        type=float,
+        default=10.0,
         help="per-invariant timeout in seconds (must be > 0)",
     )
     args = parser.parse_args(argv)

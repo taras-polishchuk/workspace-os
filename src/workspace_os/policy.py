@@ -1,11 +1,14 @@
 """Versioned drift-classification policy and deterministic drift identifiers."""
+
 from __future__ import annotations
 
 import hashlib
 import json
 import re
 from dataclasses import dataclass
+from importlib.resources.abc import Traversable
 from pathlib import Path
+from typing import BinaryIO, cast
 
 import yaml
 
@@ -38,9 +41,12 @@ class Policy:
     source_bytes: bytes = b""
 
 
-def load_policy(path: Path | str) -> Policy:
-    path = Path(path)
-    raw = path.read_bytes()
+def load_policy(path: Path | str | Traversable) -> Policy:
+    if isinstance(path, (Path, str)):
+        raw = Path(path).read_bytes()
+    else:
+        with cast(BinaryIO, path.open("rb")) as stream:
+            raw = stream.read()
     data = yaml.safe_load(raw) or {}
     inv = data.get("invariants") or {}
     baseline = data.get("baseline") or {}
@@ -78,13 +84,20 @@ def validate_policy(policy: Policy) -> list[str]:
     for name, value in values.items():
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             errors.append(f"{name} must be a non-negative integer")
-    if isinstance(policy.invariants.max_runtime_seconds, int) and not 1 <= policy.invariants.max_runtime_seconds <= 60:
+    if (
+        isinstance(policy.invariants.max_runtime_seconds, int)
+        and not 1 <= policy.invariants.max_runtime_seconds <= 60
+    ):
         errors.append("invariants.max_runtime_seconds must be between 1 and 60")
     if policy.baseline_pass_count != policy.invariants.min_pass_count:
         errors.append("baseline.pass_count must equal invariants.min_pass_count")
     if policy.baseline_fail_count != policy.invariants.max_fail_count:
         errors.append("baseline.fail_count must equal invariants.max_fail_count")
-    for name, items in (("known_drift", policy.known_drift), ("forbidden_drift", policy.forbidden_drift), ("mandatory_drift", policy.mandatory_drift)):
+    for name, items in (
+        ("known_drift", policy.known_drift),
+        ("forbidden_drift", policy.forbidden_drift),
+        ("mandatory_drift", policy.mandatory_drift),
+    ):
         if not all(isinstance(item, str) and item.strip() for item in items):
             errors.append(f"{name} entries must be non-empty strings")
     return errors
@@ -105,7 +118,9 @@ def drift_categories(policy: Policy, validator_output: str) -> list[str]:
         if (passed, failed) != (policy.baseline_pass_count, policy.baseline_fail_count):
             categories.add(f"baseline_count:{passed}/{failed}")
     # Explicit machine-readable categories emitted by validators/fixtures.
-    categories.update(re.findall(r"(?:DRIFT(?:_CATEGORY)?|drift)\s*[:=]\s*([a-zA-Z0-9_.-]+)", validator_output))
+    categories.update(
+        re.findall(r"(?:DRIFT(?:_CATEGORY)?|drift)\s*[:=]\s*([a-zA-Z0-9_.-]+)", validator_output)
+    )
     return sorted(categories)
 
 
@@ -114,6 +129,7 @@ def compute_drift_id(policy: Policy, validator_output: str) -> str:
     policy_hash = hashlib.sha256(policy.source_bytes).hexdigest()
     canonical = json.dumps(
         {"policy_sha256": policy_hash, "categories": drift_categories(policy, validator_output)},
-        sort_keys=True, separators=(",", ":"),
+        sort_keys=True,
+        separators=(",", ":"),
     ).encode()
     return hashlib.sha256(canonical).hexdigest()

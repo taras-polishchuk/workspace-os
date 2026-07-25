@@ -4,19 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "workspace-os"
-version = "2.0.0a1"
+version = "2.0.0"
 description = "Workspace OS v2 local Python validator + CLI + SQLite state store"
 requires-python = ">=3.11"
 authors = [
   {name = "Taras Polishchuk"},
 ]
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 dependencies = ["PyYAML>=6.0"]
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
-dev = ["pytest>=7.0", "ruff>=0.6.0", "mypy>=1.5", "bandit>=1.7", "pip-audit>=2.6"]
+dev = [
+  "pytest>=7.0",
+  "ruff>=0.6.0",
+  "mypy>=1.5",
+  "types-PyYAML>=6.0",
+  "bandit>=1.7",
+  "pip-audit>=2.6",
+  "build>=1.2",
+]
 
 [project.scripts]
 workspace-os = "workspace_os.cli:main"
@@ -25,6 +34,29 @@ validator = "workspace_os.validator.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+workspace_os = ["policy.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --tb=short"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+warn_unused_configs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[tool.bandit]
+# The bounded local kernel intentionally launches operator-provided argv and an
+# owner/mode-validated compatibility shim without shell=True. Those two reviewed
+# boundaries account for B404/B603/B607; all MEDIUM/HIGH findings still fail.
+skips = ["B404", "B603", "B607"]

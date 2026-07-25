@@ -1,4 +1,5 @@
 """Policy-driven wrapper around the Python-owned validator."""
+
 from __future__ import annotations
 
 import json
@@ -7,8 +8,9 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass, field
+from importlib.resources import files
+from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import Optional
 
 from workspace_os._safe_io import (
     SymlinkRefusedError,
@@ -18,13 +20,13 @@ from workspace_os._safe_io import (
 from workspace_os.policy import compute_drift_id, drift_categories, load_policy
 
 __all__ = [
-    "DEFAULT_POLICY_PATH",
+    "DEFAULT_POLICY_RESOURCE",
     "SUMMARY_RE",
     "ValidatorVerdict",
     "run_validator",
 ]
 
-DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[2] / "policy.yaml"
+DEFAULT_POLICY_RESOURCE: Traversable = files("workspace_os").joinpath("policy.yaml")
 SUMMARY_RE = re.compile(r"Summary:\s*(\d+)\s*passed,\s*(\d+)\s*failed", re.IGNORECASE)
 
 
@@ -49,6 +51,7 @@ def _shim_is_safe(shim_path: Path) -> bool:
         return False
     # Refuse if the leaf is a symlink or any special file.
     import stat as stat_mod
+
     if not stat_mod.S_ISREG(st.st_mode):
         return False
     if st.st_uid != os.getuid():
@@ -78,7 +81,7 @@ class ValidatorVerdict:
     pass_count: int
     fail_count: int
     raw_output: str
-    raw_output_path: Optional[Path]
+    raw_output_path: Path | None
     exit_code: int
     drift_id: str = ""
     drift_categories: list[str] = field(default_factory=list)
@@ -98,19 +101,21 @@ class ValidatorVerdict:
 
     def __str__(self) -> str:
         accepted = " accepted" if self.accepted else ""
-        return (f"{self.pass_count} PASS / {self.fail_count} FAIL (exit {self.exit_code}); "
-                f"drift_id={self.drift_id}{accepted}")
+        return (
+            f"{self.pass_count} PASS / {self.fail_count} FAIL (exit {self.exit_code}); "
+            f"drift_id={self.drift_id}{accepted}"
+        )
 
 
 def run_validator(
     workspace_root: Path,
     *,
-    output_path: Optional[Path] = None,
-    timeout: Optional[int] = None,
-    policy_path: Optional[Path] = None,
+    output_path: Path | None = None,
+    timeout: int | None = None,
+    policy_path: Path | None = None,
     accept_drift: bool = False,
     accept_rationale: str = "",
-    mission_id: Optional[int] = None,
+    mission_id: int | None = None,
     strict: bool = False,  # R14: --strict opt-in for hard-fail on any drift
 ) -> ValidatorVerdict:
     """Run the Python validator and classify its normalized drift.
@@ -123,7 +128,7 @@ def run_validator(
     """
     if accept_drift and not accept_rationale.strip():
         raise ValueError("--accept-drift requires a non-empty --accept-rationale")
-    policy = load_policy(policy_path or DEFAULT_POLICY_PATH)
+    policy = load_policy(policy_path or DEFAULT_POLICY_RESOURCE)
     # H-6 fix: the legacy "bin/validate-workspace.sh" fixture is no longer
     # required for the canonical workspace; the Python validator runs for
     # all workspaces. A workspace-local "bin/validate-workspace.sh" shim is
@@ -131,16 +136,22 @@ def run_validator(
     # workspaces), but the default is the Python engine.
     legacy_fixture = workspace_root / "bin" / "validate-workspace.sh"
     # Caller may tighten the limit, but may never exceed policy's 60s bound.
-    effective_timeout = min(timeout or policy.invariants.max_runtime_seconds,
-                            policy.invariants.max_runtime_seconds)
+    effective_timeout = min(
+        timeout or policy.invariants.max_runtime_seconds, policy.invariants.max_runtime_seconds
+    )
     if legacy_fixture.exists():
         # Compatibility path: workspace-local shim is present.
         # Defence-in-depth: only execute the shim if it is owned by the
         # current user and not group/world-writable. Otherwise fall back
         # to the Python peer validator rather than running attacker code.
         if _shim_is_safe(legacy_fixture):
-            completed = subprocess.run(["bash", str(legacy_fixture)], cwd=str(workspace_root),
-                                       capture_output=True, text=True, timeout=effective_timeout)
+            completed = subprocess.run(
+                ["bash", str(legacy_fixture)],
+                cwd=str(workspace_root),
+                capture_output=True,
+                text=True,
+                timeout=effective_timeout,
+            )
             raw_output = completed.stdout + completed.stderr
             returncode = completed.returncode
         else:
@@ -150,23 +161,23 @@ def run_validator(
             # from the Python engine is the safer outcome than refusing
             # the entire validation run.
             from workspace_os.validator import run_validation
+
             _, raw_output, returncode = run_validation(
                 workspace_root, check_timeout=effective_timeout
             )
     else:
         # Default path: Python-owned validator peer.
         from workspace_os.validator import run_validation
+
         _, raw_output, returncode = run_validation(workspace_root, check_timeout=effective_timeout)
     if output_path is not None:
         # Atomic, symlink-safe write.
         try:
             atomic_write_text(output_path, raw_output)
         except SymlinkRefusedError as e:
-            raise ValueError(
-                f"refusing to write validator output to symlink: {output_path}"
-            ) from e
+            raise ValueError(f"refusing to write validator output to symlink: {output_path}") from e
     match = SUMMARY_RE.search(raw_output)
-    passed, failed = (map(int, match.groups()) if match else (0, 0))
+    passed, failed = map(int, match.groups()) if match else (0, 0)
     categories = drift_categories(policy, raw_output)
     drift_id = compute_drift_id(policy, raw_output)
     forbidden = sorted(set(categories) & set(policy.forbidden_drift))
@@ -176,26 +187,37 @@ def run_validator(
     # drift requires an explicit one-run acceptance; in --strict mode
     # even accepted drift fails.
     policy_ok = (
-        not forbidden
-        and not mandatory_hit
-        and (not unexpected or (accept_drift and not strict))
+        not forbidden and not mandatory_hit and (not unexpected or (accept_drift and not strict))
     )
-    accepted = bool(accept_drift and unexpected and not forbidden and not mandatory_hit and not strict)
-    verdict = ValidatorVerdict(passed, failed, raw_output, output_path,
-                               returncode, drift_id, categories,
-                               accepted, accept_rationale.strip(), policy_ok)
+    accepted = bool(
+        accept_drift and unexpected and not forbidden and not mandatory_hit and not strict
+    )
+    verdict = ValidatorVerdict(
+        passed,
+        failed,
+        raw_output,
+        output_path,
+        returncode,
+        drift_id,
+        categories,
+        accepted,
+        accept_rationale.strip(),
+        policy_ok,
+    )
     if accepted:
         audit_path = workspace_root / ".wsos" / "drift-acceptance.jsonl"
         # Defend against symlink attacks: refuse if the audit path or
         # any of its parent components is a symlink.
         safe_mkdir(audit_path.parent, mode=0o700)
         if audit_path.is_symlink():
-            raise ValueError(
-                f"refusing to append to symlink at {audit_path}"
-            )
-        record = {"ts": time.time(), "drift_id": drift_id,
-                  "categories": unexpected, "rationale": accept_rationale.strip(),
-                  "mission_id": mission_id}
+            raise ValueError(f"refusing to append to symlink at {audit_path}")
+        record = {
+            "ts": time.time(),
+            "drift_id": drift_id,
+            "categories": unexpected,
+            "rationale": accept_rationale.strip(),
+            "mission_id": mission_id,
+        }
         # Append atomically: write the full new contents to a tempfile
         # and replace. (jsonl files are append-only but we read-modify-write
         # to keep the operation atomic and symlink-safe.)

@@ -1,91 +1,64 @@
 # Release Notes
 
-This document is the canonical release narrative for `workspace-os`.
-For the structured changelog, see [`CHANGELOG.md`](CHANGELOG.md).
-For the operator-facing runbook, see [`runbook.md`](runbook.md).
+Canonical release narrative for `workspace-os`. See [`CHANGELOG.md`](CHANGELOG.md) for structured changes and [`runbook.md`](runbook.md) for operator procedures.
 
-## Latest release: 2.0.0a1 (v0.5-rc)
+## Release candidate: 2.0.0
 
-**Release date:** 2026-07-22
-**Phase:** v0.5 release candidate (post-blueprint, pre-LTS)
-**Compatibility:** v1.1 LTS governance preserved via
-`bin/validate-workspace.sh` shim; canonical CLI is `workspace-os` and
-`validator`.
+**Candidate date:** 2026-07-25
 
-### What this release delivers
+**Phase:** v2.0-rc
 
-1. **Post-blueprint state-management kernel.** CLI + SQLite state store +
-   mission lifecycle + Python validator, replacing the legacy
-   `bin/validate-workspace.sh` shell implementation. The legacy script
-   remains as a forwarding shim for one release cycle.
-2. **Hardened security baseline.** 5 HIGH-severity defects closed:
-   symlink-write attacks (NEW-1/2/3, HIGH-1), concurrent-init races
-   (HIGH-2), unsafe shell-script execution (MEDIUM-3).
-3. **109-test regression suite.** Covers CLI, mission lifecycle, SQLite
-   state, validator, daemon stub, and 22 dedicated safety tests
-   (`tests/test_safety.py`).
-4. **Clean static analysis.** `ruff`, `mypy`, and `bandit` all return
-   zero issues at this release.
+**Scope:** bounded local, single-host Python kernel
 
-### What is NOT in this release
+### Delivered
 
-These were deliberately deferred (per `README.md` "v0.5-rc scope"):
+1. Local CLI, SQLite-backed workspace and mission state, mission create/list/close, agent-run recording, and Python validator.
+2. Eight-artifact Sprint Pattern with symlink-safe writes and concurrent-init defenses.
+3. Runtime drift policy included in wheel and sdist and loaded through `importlib.resources`.
+4. Reproducible release gate covering Ruff, Ruff format, mypy, Bandit, pytest, pip-audit, build, archive contents, and installed-package smoke checks.
+5. CI definition for Python 3.11 and 3.12 that invokes the same release verifier.
 
-- Daemon process (`daemon.py` is a documented stub).
-- Integration with `kgctl approve-canonical`.
-- GMR monorepo creation.
-- 4-service compose.
+### Deliberately outside v2.0.0
 
-### Upgrade from v1.1-LTS
+- production daemon;
+- `kgctl approve-canonical` integration;
+- GMR monorepo creation;
+- four-service Compose topology.
 
-No migration is required for the v1.1 LTS governance layer; the
-validator produces the same `drift_id` and the same 5 PASS / 12 FAIL
-canonical baseline.
+The daemon module remains an explicit unavailable contract stub. These ecosystem capabilities are post-GA work and are not represented as shipped.
 
-For projects that call `bin/validate-workspace.sh` directly, see
-[`docs/validator-callers.md`](docs/validator-callers.md) for the
-dual-run / compatibility plan.
-
-### Verify this release
+### Verify the candidate
 
 ```bash
-# Editable install
-pip install -e ".[test]"
-
-# Run tests
-PYTHONPATH=src python3 -m pytest tests/ -q
-
-# Smoke
-workspace-os --workspace /tmp/lts-smoke init
-workspace-os --workspace /tmp/lts-smoke mission new lts-test
-workspace-os --workspace /tmp/lts-smoke validate
-workspace-os --workspace /tmp/lts-smoke mission close lts-test
-
-# Cleanup
-rm -rf /tmp/lts-smoke
+python -m pip install -e ".[dev]"
+python scripts/release_verify.py
+python scripts/release_verify.py --clean-clone
 ```
 
-Expected: `109 passed`, validator returns
-`drift_id=33c96175219bdd00cc3798a2090362bffdc2a56f021b29ac95b6afa9aaa3c7d4`.
+A successful run ends with `RELEASE VERIFY PASS` and names the wheel and sdist. The script validates that both archives contain `workspace_os/policy.yaml`, installs the wheel in an isolated environment, loads the policy without repository access, and exercises both console entry points.
+
+### Publication state
+
+The release candidate can be certified locally and committed independently of publication. A public GA release additionally requires:
+
+- a configured canonical Git remote;
+- the committed candidate pushed to that remote;
+- remote CI green for the pushed commit;
+- an annotated `v2.0.0` tag on that commit;
+- optional PyPI publication if the package is intended for `pip install workspace-os`.
+
+No public release, remote CI, tag, or PyPI state should be inferred from local verification alone.
 
 ### Known limitations
 
-- The `validator` entry point depends on the canonical Workspace OS
-  layout (bootstrap files, governance structure). Running it against a
-  non-canonical workspace will return FAIL verdicts by design.
-- The daemon is a documented stub. Any future daemon work is gated on
-  the IPC test suite described in `runbook.md` §6.
-
----
+- Validator results are relative to the Workspace OS layout and committed drift policy.
+- The default workspace root remains `/home/taras/projects`; portable callers should pass `--workspace` or set `WORKSPACE_OS_ROOT`.
+- The package is local and single-host. It does not expose a daemon or distributed deployment surface.
 
 ## Release history
 
 | Version | Date | Phase | Status |
 |---|---|---|---|
-| 2.0.0a1 | 2026-07-22 | v0.5-rc | Current |
-| 1.1.0-LTS | 2026-06-28 | LTS | Frozen (bug-fix only) |
-
-The v1.1.0-LTS baseline is governed by
-`/home/taras/projects/GOVERNANCE/FREEZE-NOTICE.md`. The v2.x series is
-the post-blueprint evolution under the V2 Implementation Program
-ratified in `FINAL-IMPLEMENTATION-PROGRAM.md` 2026-07-22.
+| 2.0.0 | 2026-07-25 | v2.0-rc | Local release candidate |
+| 2.0.0a1 | 2026-07-22 | v0.5-rc | Superseded candidate |
+| 1.1.0-LTS | 2026-06-28 | LTS | Historical frozen baseline |
