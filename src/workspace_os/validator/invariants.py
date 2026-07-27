@@ -178,7 +178,7 @@ def check_symlink_integrity(workspace: Path) -> list[CheckResult]:
 
 def check_identity_drift(workspace: Path) -> CheckResult:
     governance, context = workspace / "GOVERNANCE", workspace / "CONTEXT"
-    audit = governance / "IDENTITY-AUTHORITY-MAP.md"
+    audit = governance / "IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md"
     files = (
         list(governance.glob("*.md"))
         + list(context.glob("*.md"))

@@ -218,6 +218,54 @@ def test_cli_validate_records_one_validator_run_row(tmp_path: Path, monkeypatch)
         assert pc == 14 and fc == 78, f"unexpected counts: pass={pc} fail={fc}"
 
 
+def test_cli_mission_archive_requires_real_final_report(tmp_path: Path, monkeypatch):
+    """The generated final-report stub is not proof of completion."""
+    _create_mission("archive-stub", tmp_path, monkeypatch)
+
+    r = _run_ws(["mission", "archive", "archive-stub"], tmp_path, monkeypatch)
+
+    assert r.returncode == 3
+    assert "final-report.md" in r.stderr
+    assert not (tmp_path / ".project-state" / "archive-stub" / ".archived").exists()
+    assert not (tmp_path / "pet" / "_archived" / "archive-stub").exists()
+
+
+def test_cli_mission_archive_and_unarchive(tmp_path: Path, monkeypatch):
+    """Archive creates a source marker, archive symlink and audit log; rollback removes them."""
+    _create_mission("archive-complete", tmp_path, monkeypatch)
+    mission_dir = tmp_path / ".project-state" / "archive-complete"
+    (mission_dir / "final-report.md").write_text(
+        "# Final Report\n\nImplementation and validation are complete.\n",
+        encoding="utf-8",
+    )
+
+    archived = _run_ws(["mission", "archive", "archive-complete"], tmp_path, monkeypatch)
+
+    assert archived.returncode == 0, archived.stderr
+    marker = mission_dir / ".archived"
+    archive_link = tmp_path / "pet" / "_archived" / "archive-complete"
+    log_path = tmp_path / ".wsos" / "mission-archive.log"
+    assert marker.is_file()
+    assert archive_link.is_symlink()
+    assert archive_link.resolve() == mission_dir.resolve()
+    assert "action=archive" in log_path.read_text(encoding="utf-8")
+    assert "mission=archive-complete" in log_path.read_text(encoding="utf-8")
+
+    unarchived = _run_ws(["mission", "unarchive", "archive-complete"], tmp_path, monkeypatch)
+
+    assert unarchived.returncode == 0, unarchived.stderr
+    assert not marker.exists()
+    assert not archive_link.exists()
+    assert "action=unarchive" in log_path.read_text(encoding="utf-8")
+
+
+def test_cli_mission_archive_missing_directory(tmp_path: Path, monkeypatch):
+    """An unregistered/non-existent mission directory is rejected cleanly."""
+    r = _run_ws(["mission", "archive", "missing-mission"], tmp_path, monkeypatch)
+    assert r.returncode == 4
+    assert "does not exist" in r.stderr
+
+
 # ──────────────────────────────────────────────────────────────────────
 # WP-02 (R5) — mission close CLI tests
 # ──────────────────────────────────────────────────────────────────────

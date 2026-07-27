@@ -5,6 +5,8 @@ Commands:
     mission new       Create a mission under .project-state/
     mission list      List missions registered to the workspace
     mission close     Close a mission by id or slug (idempotent, WP-02/R5)
+    mission archive   Mark a completed mission archived and link it under pet/_archived/
+    mission unarchive Roll back mission archival
     validate          Run the Python validator peer entry and parse the verdict
     agent run         Run a shell command, record it in agent_runs, return exit code
 
@@ -49,9 +51,11 @@ __all__ = [
     "build_parser",
     "cmd_agent_run",
     "cmd_init",
+    "cmd_mission_archive",
     "cmd_mission_close",
     "cmd_mission_list",
     "cmd_mission_new",
+    "cmd_mission_unarchive",
     "cmd_validate",
     "main",
 ]
@@ -272,6 +276,84 @@ def cmd_mission_close(args: argparse.Namespace) -> int:
         return 5
 
 
+def _mission_archive_paths(ws_root: Path, identifier: str) -> tuple[Path, Path, Path]:
+    """Return source, archive-link and marker paths for a safe mission slug."""
+    if not identifier or identifier in {".", ".."} or Path(identifier).name != identifier:
+        raise ValueError("mission-id must be one path-safe mission directory name")
+    mission_dir = ws_root / ".project-state" / identifier
+    archive_link = ws_root / "pet" / "_archived" / identifier
+    return mission_dir, archive_link, mission_dir / ".archived"
+
+
+def _mission_archive_log(ws_root: Path, action: str, identifier: str) -> None:
+    """Append one audit record using an atomic, symlink-safe replacement."""
+    log_path = ws_root / ".wsos" / "mission-archive.log"
+    previous = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+    timestamp = int(time.time())
+    atomic_write_text(
+        log_path, f"{previous}timestamp={timestamp} action={action} mission={identifier}\n"
+    )
+
+
+def cmd_mission_archive(args: argparse.Namespace) -> int:
+    """Archive a mission only when final-report.md contains real completion content."""
+    ws_root = _resolve_workspace(args)
+    mission_dir, archive_link, marker = _mission_archive_paths(ws_root, args.identifier)
+    if not mission_dir.is_dir() or mission_dir.is_symlink():
+        print(f"error: mission directory does not exist: {mission_dir}", file=sys.stderr)
+        return 4
+
+    final_report = mission_dir / "final-report.md"
+    if not final_report.is_file() or final_report.is_symlink():
+        print(f"error: completed final-report.md is required: {final_report}", file=sys.stderr)
+        return 3
+    report_text = final_report.read_text(encoding="utf-8")
+    if not report_text.strip() or "(To be written at mission close.)" in report_text:
+        print(f"error: final-report.md is still a stub: {final_report}", file=sys.stderr)
+        return 3
+
+    safe_mkdir(archive_link.parent, mode=WSOS_DIR_MODE)
+    if archive_link.is_symlink():
+        if archive_link.resolve() != mission_dir.resolve():
+            print(f"error: archive link points elsewhere: {archive_link}", file=sys.stderr)
+            return 3
+    elif archive_link.exists():
+        print(f"error: archive destination already exists: {archive_link}", file=sys.stderr)
+        return 3
+    else:
+        archive_link.symlink_to(mission_dir, target_is_directory=True)
+
+    atomic_write_text(marker, f"archived_at={int(time.time())}\narchive_path={archive_link}\n")
+    _mission_archive_log(ws_root, "archive", args.identifier)
+    print(f"Archived mission {args.identifier} at {archive_link}")
+    return 0
+
+
+def cmd_mission_unarchive(args: argparse.Namespace) -> int:
+    """Remove the archive marker and workspace-owned archive symlink."""
+    ws_root = _resolve_workspace(args)
+    mission_dir, archive_link, marker = _mission_archive_paths(ws_root, args.identifier)
+    if not mission_dir.is_dir() or mission_dir.is_symlink():
+        print(f"error: mission directory does not exist: {mission_dir}", file=sys.stderr)
+        return 4
+    if archive_link.exists() and not archive_link.is_symlink():
+        print(
+            f"error: refusing to remove non-symlink archive destination: {archive_link}",
+            file=sys.stderr,
+        )
+        return 3
+    if archive_link.is_symlink():
+        archive_link.unlink()
+    if marker.is_symlink():
+        print(f"error: refusing to remove symlink marker: {marker}", file=sys.stderr)
+        return 3
+    if marker.exists():
+        marker.unlink()
+    _mission_archive_log(ws_root, "unarchive", args.identifier)
+    print(f"Unarchived mission {args.identifier}")
+    return 0
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     """Run the Python validator and persist the result as one validator_run row.
 
@@ -463,6 +545,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt (no prompt currently; reserved for future use)",
     )
     p_mission_close.set_defaults(func=cmd_mission_close)
+
+    p_mission_archive = msub.add_parser(
+        "archive", help="Archive a completed mission directory", add_help=True
+    )
+    p_mission_archive.add_argument("--workspace", "-w", default=None, help=argparse.SUPPRESS)
+    p_mission_archive.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
+    p_mission_archive.add_argument("identifier", help="Mission directory name under .project-state")
+    p_mission_archive.set_defaults(func=cmd_mission_archive)
+
+    p_mission_unarchive = msub.add_parser(
+        "unarchive", help="Roll back mission archival", add_help=True
+    )
+    p_mission_unarchive.add_argument("--workspace", "-w", default=None, help=argparse.SUPPRESS)
+    p_mission_unarchive.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
+    p_mission_unarchive.add_argument(
+        "identifier", help="Mission directory name under .project-state"
+    )
+    p_mission_unarchive.set_defaults(func=cmd_mission_unarchive)
 
     p_validate = sub.add_parser(
         "validate", help="Run the Python validator and parse verdict", add_help=True

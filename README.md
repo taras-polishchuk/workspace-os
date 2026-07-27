@@ -29,11 +29,21 @@ Python 3.11+ is required. The only runtime dependency is PyYAML>=6.0.
 workspace-os --workspace /path/to/workspace init
 workspace-os --workspace /path/to/workspace mission new my-slug
 workspace-os --workspace /path/to/workspace mission list
+workspace-os --workspace /path/to/workspace mission archive my-slug
+workspace-os --workspace /path/to/workspace mission unarchive my-slug
 workspace-os --workspace /path/to/workspace validate
 workspace-os --workspace /path/to/workspace agent run -- echo hello
 ```
 
 `--workspace` is accepted before or after the verb. The default root is the current directory; override it with `--workspace` or `WORKSPACE_OS_ROOT`.
+
+`mission archive <mission-id>` is an explicit post-completion step. It requires
+`.project-state/<mission-id>/final-report.md` to contain real content rather than
+the generated placeholder, creates a `.archived` marker in that mission, and
+creates `pet/_archived/<mission-id>` as a symlink back to the source mission.
+The operation is recorded in `.wsos/mission-archive.log`. Use
+`mission unarchive <mission-id>` to remove the marker and symlink and record the
+rollback. Neither operation deletes the source mission directory.
 
 ## Library API
 
