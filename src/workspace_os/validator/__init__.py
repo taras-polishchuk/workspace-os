@@ -24,7 +24,7 @@ def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
     Mandatory categories:
         - sprint_pattern_incomplete: any mission under .project-state/
           missing one of the 8 sprint pattern files
-        - missing_security_audit_log: GOVERNANCE/IDENTITY-AUTHORITY-MAP.md
+        - missing_security_audit_log: ARCHIVE/audits/IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md
           is missing (the canonical security-audit artifact)
         - missing_audit_json_key: CONTEXT/workspace-index.json is missing
           or unparseable
@@ -46,7 +46,7 @@ def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
                 continue
             break
     # missing_security_audit_log
-    if not (workspace / "GOVERNANCE" / "IDENTITY-AUTHORITY-MAP.md").is_file():
+    if not (workspace / "ARCHIVE" / "audits" / "IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md").is_file():
         markers.append("drift: missing_security_audit_log")
     # missing_audit_json_key
     index = workspace / "CONTEXT" / "workspace-index.json"
