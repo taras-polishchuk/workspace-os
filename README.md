@@ -92,6 +92,18 @@ The authoritative governance and implementation program live in the parent Works
 
 These host paths document release provenance and are not required at package runtime.
 
+## See also (canonical architecture)
+
+This repository is one node in the canonical Public Portfolio Information Architecture (PPIA v1.0). Each sibling implements a specific contract in the substrate-first stack.
+
+| Sibling | Role | Contract / integration |
+|---------|------|--------------------------|
+| [`taras-polishchuk/operatoros-platform`](https://github.com/taras-polishchuk/operatoros-platform) | Mission runtime (TypeScript monorepo) | Implements the `MissionSource` boundary that this `workspace-os` validator enforces. |
+| [`taras-polishchuk/operatoros-framework`](https://github.com/taras-polishchuk/operatoros-framework) | Operator CLI (Node.js 20+, MIT) | The single-operator CLI that orchestrates missions on top of this kernel. |
+| [`taras-polishchuk/taras-polishchuk`](https://github.com/taras-polishchuk/taras-polishchuk) | Public profile surface | Authoritative source for the GitHub profile and the PPIA specification. |
+
+Cross-references go forward (this repo → operatoros-platform via MissionSource) and reverse (operatoros-platform → this repo). The architecture preserves the substrate-first ordering: Workspace OS precedes Knowledge OS precedes AI Factory precedes AI Ecosystem v1.0 (see PPIA §2.3).
+
 ## v2.0.0 scope and limitations
 
 Included:
@@ -111,3 +123,4 @@ Not included:
 - four-service Compose topology.
 
 These are post-GA ecosystem work, not missing local-kernel functionality.
+
