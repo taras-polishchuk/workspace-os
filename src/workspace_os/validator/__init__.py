@@ -46,7 +46,9 @@ def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
                 continue
             break
     # missing_security_audit_log
-    if not (workspace / "ARCHIVE" / "audits" / "IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md").is_file():
+    if not (
+        workspace / "ARCHIVE" / "audits" / "IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md"
+    ).is_file():
         markers.append("drift: missing_security_audit_log")
     # missing_audit_json_key
     index = workspace / "CONTEXT" / "workspace-index.json"
