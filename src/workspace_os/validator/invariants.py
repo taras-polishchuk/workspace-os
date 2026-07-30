@@ -258,7 +258,7 @@ def check_governance_references(workspace: Path) -> CheckResult:
                 if (
                     value in checked
                     or not value.endswith(extensions)
-                    or any(c in value for c in "*?[$")
+                    or any(c in value for c in "*?[$<>{}")
                 ):
                     continue
                 checked.add(value)
