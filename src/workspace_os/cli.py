@@ -53,8 +53,12 @@ __all__ = [
     "cmd_init",
     "cmd_mission_archive",
     "cmd_mission_close",
+    "cmd_mission_fail",
     "cmd_mission_list",
     "cmd_mission_new",
+    "cmd_mission_pause",
+    "cmd_mission_resume",
+    "cmd_mission_status",
     "cmd_mission_unarchive",
     "cmd_validate",
     "main",
@@ -202,6 +206,218 @@ def cmd_mission_list(args: argparse.Namespace) -> int:
         ts_str = datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%d %H:%M")
         print(f"{m['mission_id']:<10} {m['slug']:<40} {m['status']:<10} {ts_str:<20}")
     return 0
+
+
+def cmd_mission_status(args: argparse.Namespace) -> int:
+    """Print "where did I leave off?" for a mission. Added in AI OS v1.0 readiness
+    certification (2026-08-04) to surface deterministic recovery info.
+
+    Exit codes:
+        0 — success (mission found)
+        4 — mission not found (unknown id or slug)
+        5 — DB error (sqlite3)
+    """
+    import sqlite3
+    from datetime import datetime
+
+    ws_root = _resolve_workspace(args)
+    try:
+        state, workspace_id = _safe_init_workspace_state(ws_root)
+    except WorkspaceStateInitError as e:
+        print(e.message, file=sys.stderr)
+        return e.exit_code
+    identifier: str = args.identifier
+
+    try:
+        if identifier.isdigit():
+            mission_id = int(identifier)
+        else:
+            matches = [
+                m for m in state.list_missions(workspace_id=workspace_id) if m["slug"] == identifier
+            ]
+            if not matches:
+                print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+                return 4
+            mission_id = matches[0]["mission_id"]
+
+        info = state.get_mission_status(mission_id)
+        if info is None:
+            print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+            return 4
+
+        print(f"Mission:        {info['slug']} (id={mission_id})")
+        print(f"Status:         {info['status']}")
+        print(f"Root path:      {info['root_path']}")
+        if info["created_at"] is not None:
+            created = datetime.fromtimestamp(info["created_at"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"Created at:     {created}")
+        if info["closed_at"] is not None:
+            closed = datetime.fromtimestamp(info["closed_at"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"Closed at:      {closed}")
+        if info["last_artifact_mtime"] > 0:
+            last = datetime.fromtimestamp(info["last_artifact_mtime"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"Last artifact:  {info['last_artifact_name']} (mtime={last})")
+            # Read the tail of execution-log.md if it exists (last 5 lines).
+            log_path = Path(info["root_path"]) / "execution-log.md"
+            if log_path.exists():
+                tail = log_path.read_text(encoding="utf-8").splitlines()[-5:]
+                if tail:
+                    print("Last 5 lines of execution-log.md:")
+                    for line in tail:
+                        print(f"  {line}")
+        return 0
+    except sqlite3.Error as e:
+        print(f"error: database error: {e}", file=sys.stderr)
+        return 5
+
+
+def cmd_mission_pause(args: argparse.Namespace) -> int:
+    """Mark a mission as 'paused'. Idempotent. Added in AI OS v1.0 readiness
+    certification (2026-08-04) to support deterministic recovery.
+
+    Exit codes:
+        0 — success
+        4 — mission not found
+        5 — DB error
+        6 — mission is closed (cannot pause a closed mission)
+    """
+    import sqlite3
+
+    ws_root = _resolve_workspace(args)
+    try:
+        state, workspace_id = _safe_init_workspace_state(ws_root)
+    except WorkspaceStateInitError as e:
+        print(e.message, file=sys.stderr)
+        return e.exit_code
+    identifier: str = args.identifier
+
+    try:
+        if identifier.isdigit():
+            mission_id = int(identifier)
+        else:
+            matches = [
+                m for m in state.list_missions(workspace_id=workspace_id) if m["slug"] == identifier
+            ]
+            if not matches:
+                print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+                return 4
+            mission_id = matches[0]["mission_id"]
+
+        new_status = state.pause_mission(mission_id)
+        if new_status is None:
+            print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+            return 4
+        if new_status == "closed":
+            print(f"error: mission {identifier!r} is closed and cannot be paused.", file=sys.stderr)
+            return 6
+        print(f"Paused mission {identifier!r} (id={mission_id}, status={new_status})")
+        return 0
+    except sqlite3.Error as e:
+        print(f"error: database error: {e}", file=sys.stderr)
+        return 5
+
+
+def cmd_mission_resume(args: argparse.Namespace) -> int:
+    """Resume a paused (or closed) mission. Idempotent. Prints the recovery
+    point — the tail of execution-log.md and the most recently modified
+    state artifact — so the next agent can pick up where this one left off.
+
+    Exit codes:
+        0 — success
+        4 — mission not found
+        5 — DB error
+    """
+    import sqlite3
+
+    ws_root = _resolve_workspace(args)
+    try:
+        state, workspace_id = _safe_init_workspace_state(ws_root)
+    except WorkspaceStateInitError as e:
+        print(e.message, file=sys.stderr)
+        return e.exit_code
+    identifier: str = args.identifier
+
+    try:
+        if identifier.isdigit():
+            mission_id = int(identifier)
+        else:
+            matches = [
+                m for m in state.list_missions(workspace_id=workspace_id) if m["slug"] == identifier
+            ]
+            if not matches:
+                print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+                return 4
+            mission_id = matches[0]["mission_id"]
+
+        new_status = state.resume_mission(mission_id)
+        if new_status is None:
+            print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+            return 4
+        print(f"Resumed mission {identifier!r} (id={mission_id}, status={new_status})")
+
+        # Print recovery context.
+        info = state.get_mission_status(mission_id)
+        if info and info["last_artifact_mtime"] > 0:
+            from datetime import datetime
+            last = datetime.fromtimestamp(info["last_artifact_mtime"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"Last artifact:  {info['last_artifact_name']} (mtime={last})")
+            log_path = Path(info["root_path"]) / "execution-log.md"
+            if log_path.exists():
+                tail = log_path.read_text(encoding="utf-8").splitlines()[-10:]
+                if tail:
+                    print("Last 10 lines of execution-log.md:")
+                    for line in tail:
+                        print(f"  {line}")
+        return 0
+    except sqlite3.Error as e:
+        print(f"error: database error: {e}", file=sys.stderr)
+        return 5
+
+
+def cmd_mission_fail(args: argparse.Namespace) -> int:
+    """Mark a mission as 'failed' (terminal, requires explicit resume to re-open).
+    Idempotent. Added in AI OS v1.0 readiness certification (2026-08-04).
+
+    Exit codes:
+        0 — success
+        4 — mission not found
+        5 — DB error
+        6 — mission is closed (cannot fail a closed mission)
+    """
+    import sqlite3
+
+    ws_root = _resolve_workspace(args)
+    try:
+        state, workspace_id = _safe_init_workspace_state(ws_root)
+    except WorkspaceStateInitError as e:
+        print(e.message, file=sys.stderr)
+        return e.exit_code
+    identifier: str = args.identifier
+
+    try:
+        if identifier.isdigit():
+            mission_id = int(identifier)
+        else:
+            matches = [
+                m for m in state.list_missions(workspace_id=workspace_id) if m["slug"] == identifier
+            ]
+            if not matches:
+                print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+                return 4
+            mission_id = matches[0]["mission_id"]
+
+        new_status = state.fail_mission(mission_id)
+        if new_status is None:
+            print(f"error: mission {identifier!r} not found.", file=sys.stderr)
+            return 4
+        if new_status == "closed":
+            print(f"error: mission {identifier!r} is closed and cannot be marked failed.", file=sys.stderr)
+            return 6
+        print(f"Failed mission {identifier!r} (id={mission_id}, status={new_status})")
+        return 0
+    except sqlite3.Error as e:
+        print(f"error: database error: {e}", file=sys.stderr)
+        return 5
 
 
 def cmd_mission_close(args: argparse.Namespace) -> int:
@@ -545,6 +761,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt (no prompt currently; reserved for future use)",
     )
     p_mission_close.set_defaults(func=cmd_mission_close)
+
+    p_mission_status = msub.add_parser(
+        "status", help="Print 'where did I leave off?' for a mission", add_help=True
+    )
+    p_mission_status.add_argument("--workspace", "-w", default=None, help=argparse.SUPPRESS)
+    p_mission_status.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
+    p_mission_status.add_argument("identifier", help="Mission ID (integer) or slug")
+    p_mission_status.set_defaults(func=cmd_mission_status)
+
+    p_mission_pause = msub.add_parser(
+        "pause", help="Pause a mission (idempotent; supports deterministic recovery)", add_help=True
+    )
+    p_mission_pause.add_argument("--workspace", "-w", default=None, help=argparse.SUPPRESS)
+    p_mission_pause.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
+    p_mission_pause.add_argument("identifier", help="Mission ID (integer) or slug")
+    p_mission_pause.set_defaults(func=cmd_mission_pause)
+
+    p_mission_resume = msub.add_parser(
+        "resume",
+        help="Resume a paused mission and print the recovery context (where did I leave off?)",
+        add_help=True,
+    )
+    p_mission_resume.add_argument("--workspace", "-w", default=None, help=argparse.SUPPRESS)
+    p_mission_resume.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
+    p_mission_resume.add_argument("identifier", help="Mission ID (integer) or slug")
+    p_mission_resume.set_defaults(func=cmd_mission_resume)
+
+    p_mission_fail = msub.add_parser(
+        "fail",
+        help="Mark a mission as failed (terminal, requires explicit resume to re-open)",
+        add_help=True,
+    )
+    p_mission_fail.add_argument("--workspace", "-w", default=None, help=argparse.SUPPRESS)
+    p_mission_fail.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
+    p_mission_fail.add_argument("identifier", help="Mission ID (integer) or slug")
+    p_mission_fail.set_defaults(func=cmd_mission_fail)
 
     p_mission_archive = msub.add_parser(
         "archive", help="Archive a completed mission directory", add_help=True

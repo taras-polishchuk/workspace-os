@@ -340,6 +340,135 @@ class WorkspaceState:
             conn.commit()
             return "closed"
 
+    def pause_mission(self, mission_id: int) -> str | None:
+        """Mark a mission as 'paused'. Idempotent: a second call is a no-op.
+
+        Added in AI OS v1.0 readiness certification (2026-08-04) to support
+        deterministic recovery. Returns the new status, or ``None`` if no
+        mission with ``mission_id`` exists.
+
+        Allowed transitions: open/paused -> paused. Closed missions cannot
+        be re-paused (use resume on a closed mission to record a re-open).
+        """
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM missions WHERE mission_id = ?",
+                (mission_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            current_status = row[0]
+            if current_status == "closed":
+                # Closed missions cannot be paused. Re-open with resume() first.
+                return "closed"
+            if current_status == "paused":
+                return "paused"  # Idempotent no-op.
+            conn.execute(
+                "UPDATE missions SET status = 'paused' WHERE mission_id = ?",
+                (mission_id,),
+            )
+            conn.commit()
+            return "paused"
+
+    def resume_mission(self, mission_id: int) -> str | None:
+        """Mark a paused mission as 'open' (in-progress). Idempotent: a no-op
+        if already open.
+
+        Added in AI OS v1.0 readiness certification (2026-08-04). Returns the
+        new status, or ``None`` if no mission with ``mission_id`` exists.
+
+        Allowed transitions: paused/closed -> open. Calling on a fresh
+        'open' mission is a no-op.
+        """
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM missions WHERE mission_id = ?",
+                (mission_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            current_status = row[0]
+            if current_status == "open":
+                return "open"  # Idempotent no-op.
+            conn.execute(
+                "UPDATE missions SET status = 'open', closed_at = NULL WHERE mission_id = ?",
+                (mission_id,),
+            )
+            conn.commit()
+            return "open"
+
+    def fail_mission(self, mission_id: int) -> str | None:
+        """Mark a mission as 'failed' (terminal, requires explicit re-open).
+
+        Added in AI OS v1.0 readiness certification (2026-08-04). Returns
+        the new status, or ``None`` if no mission with ``mission_id`` exists.
+
+        Allowed transitions: open/paused -> failed. Once 'failed', use
+        resume_mission() to re-open.
+        """
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM missions WHERE mission_id = ?",
+                (mission_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            current_status = row[0]
+            if current_status == "closed":
+                return "closed"  # closed is terminal; do not overwrite.
+            if current_status == "failed":
+                return "failed"  # Idempotent no-op.
+            conn.execute(
+                "UPDATE missions SET status = 'failed' WHERE mission_id = ?",
+                (mission_id,),
+            )
+            conn.commit()
+            return "failed"
+
+    def get_mission_status(self, mission_id: int) -> dict | None:
+        """Return the full mission state for resume. Returns ``None`` if the
+        mission does not exist.
+
+        Added in AI OS v1.0 readiness certification (2026-08-04). Used by
+        ``cli.py mission status`` to surface "where did I leave off?".
+
+        Returns a dict with keys: status, slug, root_path, created_at,
+        closed_at, last_artifact_mtime (filesystem mtime of newest state file).
+        """
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status, slug, root_path, created_at, closed_at "
+                "FROM missions WHERE mission_id = ?",
+                (mission_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        status, slug, root_path, created_at, closed_at = row
+        root = Path(root_path)
+        # Find the most recent mtime among the 8 canonical state files.
+        SPRINT_PATTERN = (
+            "source-task.md", "progress.md", "decisions.md", "blockers.md",
+            "artifacts.md", "environment.md", "execution-log.md", "final-report.md",
+        )
+        last_artifact_mtime = 0.0
+        last_artifact_name = None
+        for name in SPRINT_PATTERN:
+            f = root / name
+            if f.exists():
+                mt = f.stat().st_mtime
+                if mt > last_artifact_mtime:
+                    last_artifact_mtime = mt
+                    last_artifact_name = name
+        return {
+            "status": status,
+            "slug": slug,
+            "root_path": root_path,
+            "created_at": created_at,
+            "closed_at": closed_at,
+            "last_artifact_mtime": last_artifact_mtime,
+            "last_artifact_name": last_artifact_name,
+        }
+
     def record_mission_artifact(
         self,
         mission_id: int,
