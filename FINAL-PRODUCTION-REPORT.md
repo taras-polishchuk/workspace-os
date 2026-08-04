@@ -97,7 +97,7 @@ Starting audit surface (from prior `FINAL-INDEPENDENT-PRODUCTION-AUDIT.md` + new
 | MEDIUM-1 | Unreachable `except UnboundLocalError` in `cmd_validate` | MEDIUM | **FIXED** (cli.py) |
 | MEDIUM-2 | 2 tests path-coupled to `/home/taras/projects/` | MEDIUM | **FIXED** (test_validator_migration.py uses self-contained fixtures) |
 | MEDIUM-3 | `examples/README.md` says "Currently empty" | MEDIUM | **FIXED** (updated) |
-| MEDIUM-4 | runbook line 4 typo `/home/tasar/` | MEDIUM | **FIXED** |
+| MEDIUM-4 | runbook line 4 typo `/home/taras/` | MEDIUM | **FIXED** |
 | MEDIUM-5 | `.wsos` 0o755 / `state.db` 0o644 world-readable | MEDIUM | **FIXED** (state.py init/connect) |
 | MEDIUM-6 | Plaintext command strings in world-readable DB | MEDIUM | **PARTIAL** (permission fix closes the exposure; documented) |
 | MEDIUM-7 | Legacy `bin/validate-workspace.sh` shim no ownership check | MEDIUM | **FIXED** (validate.py:_shim_is_safe + graceful fallback to Python validator) |
@@ -164,7 +164,7 @@ Implemented in priority order:
 - **`src/workspace_os/validate.py`** — `atomic_write_text` for `--output`; legacy shim gated by `_shim_is_safe` ownership/mode check with graceful fallback to Python validator; `UnsafeLegacyShimError` removed (now an internal fallback path).
 - **`src/workspace_os/mission.py`** — `_format_utc_timestamp`/`_format_utc_date` derived from `datetime.timezone.utc`; mission directory creation refuses symlinked targets; 8-artifact files written with `os.open(O_CREAT|O_EXCL|O_NOFOLLOW, 0o600)` for atomic file creation without symlink following.
 - **`src/workspace_os/policy.py`** — type-safe policy construction; `data.get(...) or 0` for int defaults.
-- **`runbook.md`** — line 4 typo fixed (`/home/tasar/` → `/home/taras/`).
+- **`runbook.md`** — line 4 typo fixed (`/home/taras/` → `/home/taras/`).
 - **`examples/README.md`** — updated to reflect the actual `demo-mission/` content.
 
 ### Test files modified or added
@@ -322,7 +322,7 @@ After implementation:
 | LOW-7 | `Mission.create` accepts arbitrary `--state-root` outside `workspace_root` | Documented CLI feature (`Mission.create(..., state_root=...)`); allows operators to colocate missions in custom directories. No security impact — caller must already have write access to the directory |
 | LOW-9 | `WorkspaceState.default()` exposes `~/.wsos/state.db` | Library-only path; no CLI code uses it; documented as legacy in `state.py` docstring |
 | bandit LOW | 7 subprocess-module warnings | All in `cli.py` (cmd_agent_run), `validate.py` (legacy shim), `timeout.py` (bounded_subprocess) — these are intentional RCE-style operations gated by operator permission |
-| doc drift | runbook mentions `/home/tasar/projects/.project-state/...` paths | Some paths in the runbook are operator-specific (canonical workspace-specific) and out of scope for the package itself |
+| doc drift | runbook mentions `/home/taras/projects/.project-state/...` paths | Some paths in the runbook are operator-specific (canonical workspace-specific) and out of scope for the package itself |
 
 None of these blocks release. They are explicit, documented, and would require product-level decisions to change.
 
@@ -375,7 +375,7 @@ Suggested changelog entry for the next release:
   use `ON CONFLICT ... RETURNING` for concurrency-safe idempotency.
 
 ### Documentation
-- runbook.md: line 4 typo fixed (`/home/tasar/` -> `/home/taras/`).
+- runbook.md: line 4 typo fixed (`/home/taras/` -> `/home/taras/`).
 - examples/README.md: updated to describe demo-mission.
 
 ### Tests

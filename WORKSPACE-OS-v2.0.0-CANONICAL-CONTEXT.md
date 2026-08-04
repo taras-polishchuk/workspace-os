@@ -721,7 +721,7 @@ These are the boundaries the v2.0.0 kernel *acknowledges* explicitly. None of th
 
 **`IDENTITY-AUTHORITY-MAP.md` is a 47 KB audit document with 26 `(typo)` annotations.** The v1.1 review observed that the document "is the type of 'evidence over opinion' that Article VI demands, but the *evidence* is '26 broken paths in 1 file'." A future agent reading this document should not treat it as a current source of truth; it is an audit document retained per the amendment retention principle. The canonical identity is `career-operating-system/EngineeringIdentity.md`; the canonical authority is `GOVERNANCE/AUTHORITY-MODEL.md`.
 
-**The `/home/tasar/` path typo is in 3 governance documents.** This is the v1.1 review's primary criticism. The v2.0 kernel does not depend on the typo (the kernel does not read those governance documents). Future agents reading the broader Workspace OS governance plane should be aware of this historical typo.
+**The `/home/taras/` path typo is in 3 governance documents.** This is the v1.1 review's primary criticism. The v2.0 kernel does not depend on the typo (the kernel does not read those governance documents). Future agents reading the broader Workspace OS governance plane should be aware of this historical typo.
 
 **The `bin/regenerate-workspace-index.sh` script was bypassed by the v1.1 manual edits.** The v1.1 review notes that either the regenerator is dead or the manual edits are dead. The v2.0 kernel does not depend on the regenerator (it has its own validator). Future agents maintaining `CONTEXT/workspace-index.json` should be aware of this drift.
 

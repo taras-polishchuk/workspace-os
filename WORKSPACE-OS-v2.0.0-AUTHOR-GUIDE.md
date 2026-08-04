@@ -463,7 +463,7 @@ Twenty-three of them, each with the correct answer.
     There is no such project. The repository you cloned (`workspace-os`) is the source code; it is itself one of the ordinary repositories under your workspace root. Workspace OS the tool is the `workspace-os` CLI you installed from it. They are different things.
 
 22. **"Workspace OS' default workspace is `/home/taras/projects`."**
-    No. As of the GA release (`97c3c49`), the default is the current working directory (`Path.cwd()`). Older documentation said `/home/tasar/projects`; that is historical. Pass `--workspace` explicitly if you want a specific root.
+    No. As of the GA release (`97c3c49`), the default is the current working directory (`Path.cwd()`). Older documentation said `/home/taras/projects`; that is historical. Pass `--workspace` explicitly if you want a specific root.
 
 23. **"Workspace OS has a release phase called `v2.0-rc`."**
     No. The release phase `v2.0-rc` was retired at the GA commit. The current release is `v2.0.0` GA, tag `v2.0.0`, peels to `97c3c49`. Older `v2.0-rc` references in older documents are historical.

@@ -103,7 +103,7 @@ Audit categories executed (all 24 required):
 |---|---|---|
 | CRITICAL | 0 | — |
 | HIGH | 4 | Two uncaught Python tracebacks (`--workspace /nonexistent --yes init`, `agent run --` empty); **two real security defects** (validator `--output` and agent-run log paths follow symlinks and overwrite target file — TOCTOU-style attack surface, **missed in my first pass**, surfaced by the security subagent, reproduced end-to-end) |
-| MEDIUM | 8 | Unreachable `except UnboundLocalError` in `cmd_validate`; test path coupling to `/home/taras/projects/`; `examples/README.md` says "Currently empty" but `examples/demo-mission/` exists; runbook line 4 has typo `/home/tasar/`; **`.wsos/` and `state.db` are created with default umask (0o755 / 0o644) — world-readable**, **plaintext command strings recorded in agent_runs and agent-runs/*.log**, **legacy `bin/validate-workspace.sh` is executed without ownership/mode check**, **`Mission.create(overwrite=True)` raises uncaught `OSError` when target is a symlink** (different from subagent's H-3 claim, but still a defect) |
+| MEDIUM | 8 | Unreachable `except UnboundLocalError` in `cmd_validate`; test path coupling to `/home/taras/projects/`; `examples/README.md` says "Currently empty" but `examples/demo-mission/` exists; runbook line 4 has typo `/home/taras/`; **`.wsos/` and `state.db` are created with default umask (0o755 / 0o644) — world-readable**, **plaintext command strings recorded in agent_runs and agent-runs/*.log**, **legacy `bin/validate-workspace.sh` is executed without ownership/mode check**, **`Mission.create(overwrite=True)` raises uncaught `OSError` when target is a symlink** (different from subagent's H-3 claim, but still a defect) |
 | LOW | 10 | Dead code (`bounded_subprocess`, `validator/drift.py` re-export, `_workspace_root` alias); `register_workspace`/`register_mission` race (SELECT-then-INSERT without ON CONFLICT); mission `_populate` files world-readable; `state_root` not validated against `workspace_root`; `validate.py:97` non-atomic write; agent-run filename collision at second boundary; `WorkspaceState.default()` exposes global DB; `time.strftime` UTC label is hardcoded; `state.connect()` reopens on first call |
 | INFO | 8 | No git repo in repo root; canonical workspace validator returns 13/98 not 14/78; canonical validator takes ~0.15s on 1000 files; exit code 5 reused; egg-info checked in despite gitignore; `shutil.rmtree` (Python 3.12) explicitly refuses symbolic links so subagent's H-3 (arbitrary directory deletion via mission overwrite) is **not exploitable**; subagent 2 + 3 timed out at 600s without writing reports |
 
@@ -313,7 +313,7 @@ Audit categories executed (all 24 required):
 - **Reproduction:** Copy the workspace-os tree anywhere else (e.g. `cp -r workspace-os /tmp/wsos-x && cd /tmp/wsos-x && PYTHONPATH=src python3 -m pytest tests/ -q`). Result: 83 passed, 2 failed:
   - `test_validator_sh_shim_forwards` → `bash: /tmp/bin/validate-workspace.sh: No such file or directory`
   - `test_dual_run_comparator_exits_zero_on_clean` → `bash: /tmp/scripts/verify/dual-run-validator.sh: No such file or directory`
-  In the canonical location `/home/taras/projects/workspace-os`, both these external scripts exist (verified via `ls /home/tasar/projects/bin/validate-workspace.sh` and `ls /home/tasar/projects/scripts/verify/dual-run-validator.sh`), so all 85 tests pass.
+  In the canonical location `/home/taras/projects/workspace-os`, both these external scripts exist (verified via `ls /home/taras/projects/bin/validate-workspace.sh` and `ls /home/taras/projects/scripts/verify/dual-run-validator.sh`), so all 85 tests pass.
 - **Impact:** The test suite is **not portable**. A CI pipeline that clones the repo to a clean working directory and runs `pytest tests/` will fail 2 tests. Anyone distributing workspace-os as an sdist will not be able to run the full suite without copying external scripts.
 - **Confidence:** HIGH (reproduced twice: once in `/tmp/wsos-audit/`, once in `/tmp/wsos-audit/` again).
 - **Remediation:** Either (a) move `test_validator_sh_shim_forwards` and `test_dual_run_comparator_exits_zero_on_clean` to the parent repo's test suite, or (b) ship those scripts inside `workspace-os/tests/fixtures/` and update `ROOT` to `parents[1]` plus a relative path. Option (b) keeps the workspace-os package self-contained.
@@ -332,17 +332,17 @@ Audit categories executed (all 24 required):
 - **Confidence:** HIGH.
 - **Remediation:** Update `examples/README.md` to describe demo-mission, or move demo-mission to `examples/demo-mission/README.md`.
 
-### MEDIUM-4 — Runbook line 4 has typo `/home/tasar/` (missing 'r')
+### MEDIUM-4 — Runbook line 4 has typo `/home/taras/` (missing 'r')
 
 - **Severity:** MEDIUM (broken reference in canonical operator documentation)
 - **Location:** `runbook.md:4`
 - **Evidence:**
   ```
   Architecture
-  is frozen per `/home/tasar/projects/.project-state/workspace-os-v2-implementation-2026-07-22/FINAL-WORK-PACKAGES.md`.
+  is frozen per `/home/taras/projects/.project-state/workspace-os-v2-implementation-2026-07-22/FINAL-WORK-PACKAGES.md`.
   ```
-  The path `/home/tasar/` does not exist. The correct path is `/home/taras/projects/`. (The actual `.project-state/workspace-os-v2-implementation-2026-07-22/` directory was not present in the audited snapshot either, but the typo is independent of the snapshot state.)
-- **Reproduction:** `head -5 /home/tasar/projects/workspace-os/runbook.md` — line 4 shows the typo.
+  The path `/home/taras/` does not exist. The correct path is `/home/taras/projects/`. (The actual `.project-state/workspace-os-v2-implementation-2026-07-22/` directory was not present in the audited snapshot either, but the typo is independent of the snapshot state.)
+- **Reproduction:** `head -5 /home/taras/projects/workspace-os/runbook.md` — line 4 shows the typo.
 - **Impact:** Operator following the runbook will fail to locate the referenced path. This is the canonical operator-facing documentation; a typo on line 4 is high-visibility.
 - **Confidence:** HIGH.
 - **Remediation:** Fix typo to `/home/taras/projects/.project-state/workspace-os-v2-implementation-2026-07-22/FINAL-WORK-PACKAGES.md`.
@@ -560,7 +560,7 @@ Audit categories executed (all 24 required):
 ### INFO-1 — No git repository in repo root
 
 - **Severity:** INFO
-- **Location:** `/home/tasar/projects/workspace-os/` (no `.git/`)
+- **Location:** `/home/taras/projects/workspace-os/` (no `.git/`)
 - **Evidence:** `git log --oneline` returns `fatal: not a git repository (or any of the parent directories): .git`. `find . -name '.git' -maxdepth 2` returns nothing.
 - **Impact:** No commit history, no tags, no branches. The version is stamped via `__version__ = "2.0.0a1"` and `pyproject.toml` only.
 - **Remediation:** Initialize git (`git init`) and commit the working tree if version control is desired.
@@ -797,7 +797,7 @@ The 2 failures are **path-coupling defects** (MEDIUM-2), not test logic failures
 | **HIGH-3** | Plant symlink at `validator.log -> important-config.conf`, run `validate --output validator.log` | Target file overwritten with validator output (database_password=secret_db_pw_ABCDEF destroyed) | ✓ 2× |
 | **HIGH-4** | Plant symlink at `.wsos/agent-runs/run-1-<ts>.log -> deploy_key`, run `agent run -- echo hello` | Target file overwritten with `command: echo hello\nexit_code: 0` | ✓ 2× |
 | MEDIUM-2 | copy repo to /tmp, run pytest | 2 test failures (test_validator_sh_shim_forwards, test_dual_run_comparator_exits_zero_on_clean) | ✓ 2× (different paths) |
-| MEDIUM-4 | `head -5 runbook.md` | line 4: `/home/tasar/projects/` (typo) | ✓ |
+| MEDIUM-4 | `head -5 runbook.md` | line 4: `/home/taras/projects/` (typo) | ✓ |
 | **MEDIUM-5** | `os.stat(wsos_root).st_mode`, `os.stat(db_path).st_mode` | `.wsos` = `0o755` (world-readable), `state.db` = `0o644` (world-readable) | ✓ 2× |
 | **MEDIUM-8** | Plant symlink at `.project-state/<slug> -> real-dir`, call `Mission.create(slug, overwrite=True)` | `OSError: Cannot call rmtree on a symbolic link` (uncaught); real target preserved | ✓ 2× |
 | **Subagent H-3 DISPROVED** | same setup as MEDIUM-8 | `shutil.rmtree` on Python 3.12 refuses symlinks; real target preserved | ✓ |

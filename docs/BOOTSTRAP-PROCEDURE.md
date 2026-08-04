@@ -11,7 +11,8 @@
 > **Canonical owner of identity:** `/home/taras/projects/career-operating-system/EngineeringIdentity.md` (target of the `IDENTITY.md` symlink).
 >
 > **Canonical owner of architecture:** `/home/taras/projects/system-graph.md` (target of the `ARCHITECTURE.md` symlink).
->
+> **Optional AI Context runtime layer (Tier-3):** `/home/taras/projects/ai-context/v3.1/runtime/`. The `EXECUTIVE_CONTEXT.md` (60-second orientation) + `AI_BOOTSTRAP.md` (task-specific routing) are loaded IN ADDITION to the 4 canonical files when the runtime supports it (e.g. Hermes via the `workspace_runtime` plugin). The kernel does not require this layer; it enhances cold-start quality for AI agents.
+
 > **Owner of this file:** `workspace-os` kernel (`docs/`). This file does **not** redefine the procedure; it specifies the runtime algorithm that any conforming kernel call performs in service of the procedure.
 
 ---
