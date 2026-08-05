@@ -447,8 +447,14 @@ class WorkspaceState:
         root = Path(root_path)
         # Find the most recent mtime among the 8 canonical state files.
         SPRINT_PATTERN = (
-            "source-task.md", "progress.md", "decisions.md", "blockers.md",
-            "artifacts.md", "environment.md", "execution-log.md", "final-report.md",
+            "source-task.md",
+            "progress.md",
+            "decisions.md",
+            "blockers.md",
+            "artifacts.md",
+            "environment.md",
+            "execution-log.md",
+            "final-report.md",
         )
         last_artifact_mtime = 0.0
         last_artifact_name = None

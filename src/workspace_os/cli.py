@@ -249,13 +249,19 @@ def cmd_mission_status(args: argparse.Namespace) -> int:
         print(f"Status:         {info['status']}")
         print(f"Root path:      {info['root_path']}")
         if info["created_at"] is not None:
-            created = datetime.fromtimestamp(info["created_at"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            created = datetime.fromtimestamp(info["created_at"], tz=UTC).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
             print(f"Created at:     {created}")
         if info["closed_at"] is not None:
-            closed = datetime.fromtimestamp(info["closed_at"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            closed = datetime.fromtimestamp(info["closed_at"], tz=UTC).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
             print(f"Closed at:      {closed}")
         if info["last_artifact_mtime"] > 0:
-            last = datetime.fromtimestamp(info["last_artifact_mtime"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            last = datetime.fromtimestamp(info["last_artifact_mtime"], tz=UTC).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
             print(f"Last artifact:  {info['last_artifact_name']} (mtime={last})")
             # Read the tail of execution-log.md if it exists (last 5 lines).
             log_path = Path(info["root_path"]) / "execution-log.md"
@@ -359,7 +365,10 @@ def cmd_mission_resume(args: argparse.Namespace) -> int:
         info = state.get_mission_status(mission_id)
         if info and info["last_artifact_mtime"] > 0:
             from datetime import datetime
-            last = datetime.fromtimestamp(info["last_artifact_mtime"], tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            last = datetime.fromtimestamp(info["last_artifact_mtime"], tz=UTC).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
             print(f"Last artifact:  {info['last_artifact_name']} (mtime={last})")
             log_path = Path(info["root_path"]) / "execution-log.md"
             if log_path.exists():
@@ -411,7 +420,10 @@ def cmd_mission_fail(args: argparse.Namespace) -> int:
             print(f"error: mission {identifier!r} not found.", file=sys.stderr)
             return 4
         if new_status == "closed":
-            print(f"error: mission {identifier!r} is closed and cannot be marked failed.", file=sys.stderr)
+            print(
+                f"error: mission {identifier!r} is closed and cannot be marked failed.",
+                file=sys.stderr,
+            )
             return 6
         print(f"Failed mission {identifier!r} (id={mission_id}, status={new_status})")
         return 0
