@@ -13,18 +13,19 @@ __all__ = ["run_validation", "emit_r14_preserve_markers"]
 
 
 def emit_r14_preserve_markers(workspace: Path, raw_output: str) -> str:
-    """Inject R14 PRESERVE markers into validator output for the 3 mandatory_drift categories.
+    """Inject policy-classification markers into validator output.
 
-    The validator emit chain (in invariants.py) does not emit the three
-    mandatory_drift categories. This post-processing step detects the
-    underlying conditions and appends ``drift: <key>`` markers to the
-    validator output so the policy parser (in policy.py drift_categories)
-    picks them up and the PRESERVE rule actually fires.
+    The validator emit chain (in invariants.py) does not emit these
+    categories. This post-processing step detects the underlying conditions
+    and appends ``drift: <key>`` markers so the policy parser (in policy.py
+    drift_categories) can classify them.
 
-    Mandatory categories:
-        - sprint_pattern_incomplete: any mission under .project-state/
-          missing one of the 8 sprint pattern files
-        - missing_security_audit_log: ARCHIVE/audits/IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md
+    Categories:
+        - sprint_pattern_incomplete: informational marker when any historical
+          mission under .project-state/ is missing one of the 8 sprint pattern
+          files; structural source-task.md/progress.md gaps are separate FAILs
+        - missing_security_audit_log: mandatory marker when
+          ARCHIVE/audits/IDENTITY-AUTHORITY-MAP-ARCHIVED-2026-06-27.md
           is missing (the canonical security-audit artifact)
         - missing_audit_json_key: CONTEXT/workspace-index.json is missing
           or unparseable
@@ -99,8 +100,5 @@ def run_validation(
                 CheckResult(check.__name__, "FAIL", f"{check.__name__}: environment error: {exc}")
             )
     output = format_report(results)
-    # C-1 fix: emit the R14 PRESERVE mandatory-drift markers so the
-    # parser picks them up. This activates the previously-nominal PRESERVE
-    # rule.
     output = emit_r14_preserve_markers(workspace, output)
     return results, output, 1 if any(not item.passed for item in results) else 0

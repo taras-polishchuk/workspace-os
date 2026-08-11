@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from workspace_os.policy import load_policy
+from workspace_os.policy import drift_categories, load_policy
 from workspace_os.validate import ValidatorVerdict, run_validator
 
 # Sample validator outputs used to exercise the parser.
@@ -125,8 +125,8 @@ def test_r14_mandatory_drift_persists_even_with_accept(stub_validator_dir: Path,
     # validator output to contain one in the summary line.
     fake = (
         "Check 1: PASS — a\n"
-        "Summary: 14 passed, 0 failed\n"
-        "DRIFT_CATEGORY: sprint_pattern_incomplete\n"
+        "Summary: 17 passed, 0 failed\n"
+        "DRIFT_CATEGORY: missing_security_audit_log\n"
     )
     (stub_validator_dir / "bin" / "validate-workspace.sh").write_text(
         f'#!/usr/bin/env bash\necho "{fake}"\n', encoding="utf-8"
@@ -134,6 +134,29 @@ def test_r14_mandatory_drift_persists_even_with_accept(stub_validator_dir: Path,
     (stub_validator_dir / "bin" / "validate-workspace.sh").chmod(0o755)
     v1 = _rv(stub_validator_dir, accept_drift=True, accept_rationale="r14 test")
     assert v1.ok is False, "mandatory drift must NEVER be waived"
+
+
+def test_historical_sprint_marker_is_informational_on_canonical_green(
+    stub_validator_dir: Path,
+):
+    """Legacy incomplete missions do not turn a structural 17/0 verdict red."""
+    fake = "Summary: 17 passed, 0 failed\ndrift: sprint_pattern_incomplete\n"
+    validator = stub_validator_dir / "bin" / "validate-workspace.sh"
+    validator.write_text(f'#!/usr/bin/env bash\nprintf "{fake}"\n', encoding="utf-8")
+    validator.chmod(0o755)
+
+    verdict = run_validator(stub_validator_dir)
+
+    assert verdict.ok is True
+    assert verdict.drift_categories == ["sprint_pattern_incomplete"]
+
+
+def test_human_readable_pass_drift_label_is_not_a_category():
+    """Only explicit marker lines are parsed, not 'PASS drift: no ...' prose."""
+    policy = load_policy(Path(__file__).resolve().parents[1] / "policy.yaml")
+    output = "PASS  drift: no identity-statement patterns\nSummary: 17 passed, 0 failed\n"
+
+    assert drift_categories(policy, output) == []
 
 
 def test_r14_strict_mode_blocks_accepted_drift(stub_validator_dir: Path):
@@ -190,6 +213,7 @@ def test_concurrent_drift_acceptance_preserves_every_audit_record(tmp_path: Path
 def test_r14_policy_mandatory_drift_field_loads():
 
     p = load_policy(Path(__file__).resolve().parents[1] / "policy.yaml")
-    assert "sprint_pattern_incomplete" in p.mandatory_drift
+    assert "sprint_pattern_incomplete" in p.known_drift
+    assert "sprint_pattern_incomplete" not in p.mandatory_drift
     assert "missing_security_audit_log" in p.mandatory_drift
     assert "missing_audit_json_key" in p.mandatory_drift

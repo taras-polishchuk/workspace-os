@@ -118,8 +118,13 @@ def drift_categories(policy: Policy, validator_output: str) -> list[str]:
         if (passed, failed) != (policy.baseline_pass_count, policy.baseline_fail_count):
             categories.add(f"baseline_count:{passed}/{failed}")
     # Explicit machine-readable categories emitted by validators/fixtures.
+    # Anchor at line start so human-readable check labels such as
+    # ``PASS  drift: no identity-statement patterns`` are not categories.
     categories.update(
-        re.findall(r"(?:DRIFT(?:_CATEGORY)?|drift)\s*[:=]\s*([a-zA-Z0-9_.-]+)", validator_output)
+        re.findall(
+            r"(?im)^\s*(?:DRIFT(?:_CATEGORY)?|drift)\s*[:=]\s*([a-zA-Z0-9_.-]+)\s*$",
+            validator_output,
+        )
     )
     return sorted(categories)
 
