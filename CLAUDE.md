@@ -25,6 +25,6 @@ Workspace OS v2 — the validator + mission CLI for the entire ecosystem. Owns t
 ## Cross-references
 
 - VERIFIED-BACKLOG task: B-17 (subdir CLAUDE.md propagation)
-- Validator gate: `workspace-os validate` must remain 16+ PASS / <2 FAIL (current: 16 PASS / 1 FAIL — see CHANGELOG)
+- Validator gate: `workspace-os validate` must remain 17 PASS / 0 FAIL, exit 0 — per `GOVERNANCE/PLATFORM-LIFECYCLE-POLICY.md §7` and `GOVERNANCE/MAINTENANCE-POLICY.md §VI`. Updated 2026-08-12 (mission `workspace-validator-failures-remediation-2026-08-12`) from the obsolete "16+ PASS / <2 FAIL" baseline; see `GOVERNANCE/AMENDMENTS.md` 2026-08-06 entry for the prior precedent (workspace-os-policy copies corrected from 14/78 → 17/0).
 - AI Context v3.1 Decision Record: `/home/taras/projects/ai-context/v3.1/governance/AI_CONTEXT_ARCHITECTURE_DECISION_RECORD.md`
-- Last updated: 2026-07-30 (Phase 2 ecosystem integration)
+- Last updated: 2026-08-12 (Phase 2.1 validator-baseline re-alignment; see `AMENDMENTS.md` for the canonical maintenance history)
